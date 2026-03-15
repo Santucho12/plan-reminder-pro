@@ -159,15 +159,15 @@ const Index = () => {
             <div className="bg-card rounded-lg shadow-card border border-border p-6 space-y-4">
               <h3 className="text-sm font-semibold">Template: Recordatorio (3 días antes)</h3>
               <div className="bg-[hsl(120_30%_95%)] rounded-lg rounded-tl-none p-4 text-sm leading-relaxed">
-                Hola [Nombre], te recordamos que tu plan <strong>[Plan]</strong> vence en 3 días. El total es <strong>$[Total]</strong>.
-                <br /><br />¡Que tengas un gran día! 💪
+                Hola [Nombre], como estas? te recordamos que tu plan <strong>[Plan]</strong> va a vencer en 3 días. El total es <strong>$[Total]</strong>.
+                <br /><br />Que tengas un buen día! 💪
               </div>
 
               <h3 className="text-sm font-semibold mt-6">Template: Vencimiento (día del vencimiento)</h3>
               <div className="bg-[hsl(120_30%_95%)] rounded-lg rounded-tl-none p-4 text-sm leading-relaxed">
                 Hola [Nombre], tu plan <strong>[Plan]</strong> venció hoy. El total es <strong>$[Total]</strong>.
-                <br /><br />Podés pagar desde acá: 🔗 [Link Mercado Pago]
-                <br /><br />¡Gracias!
+                <br /><br />Te mando el link de pago: 🔗 [Link Mercado Pago]
+                <br /><br />Gracias!
               </div>
             </div>
 

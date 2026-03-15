@@ -18,9 +18,9 @@ const AppSidebar = ({ activeView, onViewChange }: AppSidebarProps) => {
     <aside className="fixed left-0 top-0 h-full w-[240px] border-r border-border bg-card flex flex-col z-50">
       <div className="p-6 border-b border-border">
         <h1 className="text-xl font-semibold tracking-tighter text-foreground">
-          Vence<span className="text-primary">Flow</span>
+          Fiesta<span className="text-primary">Cobra</span>
         </h1>
-        <p className="text-xs text-muted-foreground mt-0.5">Cobros en piloto automático</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Cobrar en piloto automático</p>
       </div>
 
       <nav className="flex-1 p-3 space-y-1">

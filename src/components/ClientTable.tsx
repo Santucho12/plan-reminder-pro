@@ -30,13 +30,15 @@ const ClientTable = ({ clients, onSendMessage }: ClientTableProps) => {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border">
-              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Nombre</th>
-              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Celular</th>
-              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Plan</th>
+              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Clientes</th>
+              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Telefono</th>
+              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Plataformas</th>
               <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Vencimiento</th>
+              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Alertas</th>
+              <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Dias</th>
               <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Total</th>
               <th className="text-center text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Estado</th>
-              <th className="text-center text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Acción</th>
+              <th className="text-center text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Accion</th>
             </tr>
           </thead>
           <tbody>
@@ -50,7 +52,7 @@ const ClientTable = ({ clients, onSendMessage }: ClientTableProps) => {
               >
                 <td className="px-5 py-3.5">
                   <span className="text-sm font-medium text-foreground">
-                    {client.nombre} {client.apellido}
+                    {client.nombre}
                   </span>
                 </td>
                 <td className="px-5 py-3.5">
@@ -63,6 +65,12 @@ const ClientTable = ({ clients, onSendMessage }: ClientTableProps) => {
                   <span className="text-sm font-mono text-foreground">
                     {format(client.vencimiento, 'dd MMM yyyy', { locale: es })}
                   </span>
+                </td>
+                <td className="px-5 py-3.5">
+                  <span className="text-xs text-muted-foreground">{client.alertas}</span>
+                </td>
+                <td className="px-5 py-3.5">
+                  <span className="text-xs font-mono text-foreground">{client.dias}</span>
                 </td>
                 <td className="px-5 py-3.5 text-right">
                   <span className="text-sm font-mono font-medium text-foreground">

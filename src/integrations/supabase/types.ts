@@ -103,6 +103,30 @@ export type Database = {
           },
         ]
       }
+      user_configs: {
+        Row: {
+          mp_access_token: string | null
+          updated_at: string
+          user_id: string
+          wpp_qr_code: string | null
+          wpp_status: string
+        }
+        Insert: {
+          mp_access_token?: string | null
+          updated_at?: string
+          user_id: string
+          wpp_qr_code?: string | null
+          wpp_status?: string
+        }
+        Update: {
+          mp_access_token?: string | null
+          updated_at?: string
+          user_id?: string
+          wpp_qr_code?: string | null
+          wpp_status?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

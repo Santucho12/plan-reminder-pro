@@ -9,28 +9,22 @@ import ClientTable from '@/components/ClientTable';
 import ExcelUpload from '@/components/ExcelUpload';
 import MessagePreview from '@/components/MessagePreview';
 import AuthPage from '@/components/AuthPage';
+import ConfigView from '@/components/ConfigView';
 import { Client } from '@/types/client';
 import { fetchClients, triggerReminders } from '@/lib/api';
 import { LogOut } from 'lucide-react';
 
 const Index = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  // ID de usuario fijo para modo "Sin Login"
+  const fixedUserId = '00000000-0000-0000-0000-000000000000';
+  const [user, setUser] = useState<any>({ id: fixedUserId });
+  const [loading, setLoading] = useState(false);
   const [activeView, setActiveView] = useState('dashboard');
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
+    // Ya no necesitamos listeners de auth
   }, []);
 
   const loadClients = useCallback(async () => {
@@ -74,17 +68,7 @@ const Index = () => {
     setClients([]);
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Cargando...</p>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <AuthPage onAuth={() => {}} />;
-  }
+  if (loading) return null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -128,13 +112,6 @@ const Index = () => {
               </>
             )}
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          >
-            <LogOut size={16} strokeWidth={1.5} />
-            Salir
-          </button>
         </div>
 
         {activeView === 'dashboard' && (
@@ -174,7 +151,7 @@ const Index = () => {
             <button
               onClick={async () => {
                 try {
-                  const result = await triggerReminders();
+                  const result = await triggerReminders(user.id);
                   toast.success(`Recordatorios: ${result?.reminders_sent || 0} enviados, Vencimientos: ${result?.expiry_sent || 0}`);
                   await loadClients();
                 } catch {
@@ -189,22 +166,7 @@ const Index = () => {
         )}
 
         {activeView === 'config' && (
-          <div className="grid gap-4 max-w-lg">
-            <div className="bg-card rounded-lg shadow-card border border-border p-5">
-              <h3 className="text-sm font-semibold mb-1">WhatsApp</h3>
-              <p className="text-xs text-muted-foreground mb-3">Conectá tu cuenta para enviar mensajes automáticos.</p>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-status-pending text-status-pending-text">
-                No conectado
-              </span>
-            </div>
-            <div className="bg-card rounded-lg shadow-card border border-border p-5">
-              <h3 className="text-sm font-semibold mb-1">Mercado Pago</h3>
-              <p className="text-xs text-muted-foreground mb-3">Conectá tu cuenta para generar links de pago.</p>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-status-pending text-status-pending-text">
-                No conectado
-              </span>
-            </div>
-          </div>
+          <ConfigView userId={user.id} />
         )}
 
         {activeView === 'upload' && (

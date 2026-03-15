@@ -17,7 +17,7 @@ const ExcelUpload = ({ onImport, userId }: ExcelUploadProps) => {
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [mapping, setMapping] = useState<ColumnMapping>({
-    nombre: '', apellido: '', celular: '', plan: '', vencimiento: '', total: '',
+    nombre: '', celular: '', plan: '', vencimiento: '', total: '', alertas: '', dias: '',
   });
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState('');
@@ -39,16 +39,17 @@ const ExcelUpload = ({ onImport, userId }: ExcelUploadProps) => {
       setRows(result.rows);
 
       // Auto-map common column names
-      const autoMap: ColumnMapping = { nombre: '', apellido: '', celular: '', plan: '', vencimiento: '', total: '' };
+      const autoMap: ColumnMapping = { nombre: '', celular: '', plan: '', vencimiento: '', total: '', alertas: '', dias: '' };
       const lowerHeaders = result.headers.map(h => h.toLowerCase().trim());
       
       const mappings: Record<keyof ColumnMapping, string[]> = {
-        nombre: ['nombre', 'name', 'first_name', 'primer nombre'],
-        apellido: ['apellido', 'last_name', 'surname', 'segundo nombre'],
-        celular: ['celular', 'telefono', 'teléfono', 'phone', 'cel', 'whatsapp', 'wpp'],
-        plan: ['plan', 'suscripcion', 'suscripción', 'membership', 'tipo'],
-        vencimiento: ['vencimiento', 'vence', 'expiry', 'expiration', 'fecha', 'fecha_vencimiento'],
+        nombre: ['clientes', 'cliente', 'nombre', 'name', 'first_name'],
+        celular: ['telefono', 'teléfono', 'celular', 'phone', 'cel', 'whatsapp', 'wpp'],
+        plan: ['plataformas', 'plataforma', 'plan', 'suscripcion', 'suscripción', 'membership', 'tipo'],
+        vencimiento: ['fecha vencimiento', 'vencimiento', 'fecha', 'vence', 'expiry', 'expiration'],
         total: ['total', 'monto', 'amount', 'precio', 'price', 'valor'],
+        alertas: ['alertas', 'alerta', 'aviso'],
+        dias: ['dias', 'días', 'frecuencia'],
       };
 
       for (const [key, aliases] of Object.entries(mappings)) {
@@ -167,13 +168,14 @@ const ExcelUpload = ({ onImport, userId }: ExcelUploadProps) => {
             <div className="bg-card rounded-lg shadow-card border border-border p-6 space-y-4">
               {(Object.keys(mapping) as (keyof ColumnMapping)[]).map((field) => {
                 const labels: Record<keyof ColumnMapping, string> = {
-                  nombre: 'Nombre *',
-                  apellido: 'Apellido',
-                  celular: 'Celular *',
-                  plan: 'Plan',
-                  vencimiento: 'Fecha de vencimiento *',
-                  total: 'Total *',
-                };
+                   nombre: 'Clientes *',
+                   celular: 'Telefono *',
+                   plan: 'Plataformas',
+                   vencimiento: 'Fecha de vencimiento *',
+                   total: 'Total *',
+                   alertas: 'Alertas',
+                   dias: 'Dias',
+                 };
                 return (
                   <div key={field} className="flex items-center gap-4">
                     <label className="w-48 text-sm font-medium text-foreground shrink-0">

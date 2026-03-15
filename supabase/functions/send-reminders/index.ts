@@ -13,6 +13,11 @@ serve(async (req) => {
   }
 
   try {
+    const { userId } = await req.json();
+    if (!userId) {
+      throw new Error('userId is required');
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -25,23 +30,31 @@ serve(async (req) => {
     const threeDaysStr = threeDaysFromNow.toISOString().split('T')[0];
 
     // Find clients whose plan expires in exactly 3 days (reminder)
+    // Filter by userId and exclude only those explicitly marked as 'pagado'
     const { data: reminders, error: remErr } = await supabase
       .from('clients')
       .select('*')
+      .eq('user_id', userId)
       .eq('vencimiento', threeDaysStr)
       .neq('estado', 'pagado');
+
+    if (remErr) throw remErr;
 
     // Find clients whose plan expired today (vencimiento)
     const { data: expired, error: expErr } = await supabase
       .from('clients')
       .select('*')
+      .eq('user_id', userId)
       .eq('vencimiento', todayStr)
       .neq('estado', 'pagado');
+
+    if (expErr) throw expErr;
 
     // Find clients whose plan already expired (update estado)
     const { data: overdue } = await supabase
       .from('clients')
       .select('id')
+      .eq('user_id', userId)
       .lt('vencimiento', todayStr)
       .neq('estado', 'vencido');
 
@@ -59,15 +72,14 @@ serve(async (req) => {
     // Process 3-day reminders
     if (reminders) {
       for (const client of reminders) {
-        const mensaje = `Hola ${client.nombre}, te recordamos que tu plan *${client.plan}* vence en 3 días. El total es *$${client.total}*.\n\n¡Que tengas un gran día! 💪`;
+        const mensaje = `Hola ${client.nombre}, como estás? te recordamos que tu plan *${client.plan}* va a vencer en 3 días. El total es *$${client.total}*.\n\n¡Que tengas un buen día! 💪`;
         
-        // Log the message (WhatsApp sending requires Twilio config)
         await supabase.from('messages_log').insert({
           client_id: client.id,
           user_id: client.user_id,
           tipo: 'recordatorio',
           mensaje,
-          enviado: false, // Will be true once WhatsApp is configured
+          enviado: false,
         });
         
         results.reminders_sent++;
@@ -83,7 +95,7 @@ serve(async (req) => {
           .update({ estado: 'vencido' })
           .eq('id', client.id);
 
-        const mensaje = `Hola ${client.nombre}, tu plan *${client.plan}* venció hoy. El total es *$${client.total}*.\n\nPodés pagar desde acá: 🔗 [Link Mercado Pago]\n\n¡Gracias!`;
+        const mensaje = `Hola ${client.nombre}, tu plan *${client.plan}* venció hoy. El total es *$${client.total}*.\n\nTe mando el link de pago: 🔗 [Link Mercado Pago]\n\n¡Gracias!`;
         
         await supabase.from('messages_log').insert({
           client_id: client.id,

@@ -1,16 +1,18 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, FileSpreadsheet, Check, AlertCircle, ArrowRight } from 'lucide-react';
-import { parseExcelFile, mapRowsToClients } from '@/lib/excel';
-import { Client, ColumnMapping } from '@/types/client';
+import { parseExcelFile } from '@/lib/excel';
+import { ColumnMapping } from '@/types/client';
+import { insertClientsFromExcel } from '@/lib/api';
 
 interface ExcelUploadProps {
-  onImport: (clients: Client[]) => void;
+  onImport: () => void;
+  userId: string;
 }
 
 type Step = 'upload' | 'mapping' | 'success';
 
-const ExcelUpload = ({ onImport }: ExcelUploadProps) => {
+const ExcelUpload = ({ onImport, userId }: ExcelUploadProps) => {
   const [step, setStep] = useState<Step>('upload');
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<Record<string, string>[]>([]);
@@ -68,17 +70,21 @@ const ExcelUpload = ({ onImport }: ExcelUploadProps) => {
     if (file) handleFile(file);
   }, [handleFile]);
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     const requiredFields: (keyof ColumnMapping)[] = ['nombre', 'celular', 'vencimiento', 'total'];
     const missing = requiredFields.filter(f => !mapping[f]);
     if (missing.length > 0) {
       setError(`Faltan campos obligatorios: ${missing.join(', ')}`);
       return;
     }
-    const clients = mapRowsToClients(rows, mapping);
-    setImportedCount(clients.length);
-    onImport(clients);
-    setStep('success');
+    try {
+      const clients = await insertClientsFromExcel(rows, mapping, userId);
+      setImportedCount(clients.length);
+      onImport();
+      setStep('success');
+    } catch (err: any) {
+      setError(err.message || 'Error al importar');
+    }
   };
 
   return (

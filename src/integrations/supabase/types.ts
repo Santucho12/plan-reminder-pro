@@ -14,7 +14,95 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      clients: {
+        Row: {
+          apellido: string | null
+          celular: string
+          created_at: string
+          estado: string
+          id: string
+          mercadopago_preference_id: string | null
+          nombre: string
+          plan: string | null
+          total: number
+          ultimo_mensaje: string | null
+          updated_at: string
+          user_id: string
+          vencimiento: string
+        }
+        Insert: {
+          apellido?: string | null
+          celular: string
+          created_at?: string
+          estado?: string
+          id?: string
+          mercadopago_preference_id?: string | null
+          nombre: string
+          plan?: string | null
+          total?: number
+          ultimo_mensaje?: string | null
+          updated_at?: string
+          user_id: string
+          vencimiento: string
+        }
+        Update: {
+          apellido?: string | null
+          celular?: string
+          created_at?: string
+          estado?: string
+          id?: string
+          mercadopago_preference_id?: string | null
+          nombre?: string
+          plan?: string | null
+          total?: number
+          ultimo_mensaje?: string | null
+          updated_at?: string
+          user_id?: string
+          vencimiento?: string
+        }
+        Relationships: []
+      }
+      messages_log: {
+        Row: {
+          client_id: string
+          created_at: string
+          enviado: boolean
+          error: string | null
+          id: string
+          mensaje: string
+          tipo: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          enviado?: boolean
+          error?: string | null
+          id?: string
+          mensaje: string
+          tipo: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          enviado?: boolean
+          error?: string | null
+          id?: string
+          mensaje?: string
+          tipo?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_log_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

@@ -77,10 +77,14 @@ const ExcelUpload = ({ onImport, userId }: ExcelUploadProps) => {
       setError(`Faltan campos obligatorios: ${missing.join(', ')}`);
       return;
     }
-    const clients = mapRowsToClients(rows, mapping);
-    setImportedCount(clients.length);
-    onImport(clients);
-    setStep('success');
+    try {
+      const clients = await insertClientsFromExcel(rows, mapping, userId);
+      setImportedCount(clients.length);
+      onImport();
+      setStep('success');
+    } catch (err: any) {
+      setError(err.message || 'Error al importar');
+    }
   };
 
   return (

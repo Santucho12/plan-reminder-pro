@@ -70,7 +70,7 @@ const ExcelUpload = ({ onImport, userId }: ExcelUploadProps) => {
     if (file) handleFile(file);
   }, [handleFile]);
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     const requiredFields: (keyof ColumnMapping)[] = ['nombre', 'celular', 'vencimiento', 'total'];
     const missing = requiredFields.filter(f => !mapping[f]);
     if (missing.length > 0) {

@@ -1,16 +1,18 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, FileSpreadsheet, Check, AlertCircle, ArrowRight } from 'lucide-react';
-import { parseExcelFile, mapRowsToClients } from '@/lib/excel';
-import { Client, ColumnMapping } from '@/types/client';
+import { parseExcelFile } from '@/lib/excel';
+import { ColumnMapping } from '@/types/client';
+import { insertClientsFromExcel } from '@/lib/api';
 
 interface ExcelUploadProps {
-  onImport: (clients: Client[]) => void;
+  onImport: () => void;
+  userId: string;
 }
 
 type Step = 'upload' | 'mapping' | 'success';
 
-const ExcelUpload = ({ onImport }: ExcelUploadProps) => {
+const ExcelUpload = ({ onImport, userId }: ExcelUploadProps) => {
   const [step, setStep] = useState<Step>('upload');
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<Record<string, string>[]>([]);

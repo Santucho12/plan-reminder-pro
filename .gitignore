@@ -22,13 +22,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
-# Project specific
-bot-whatsapp/.wwebjs_auth
-bot-whatsapp/.wwebjs_cache
-supabase/.temp
-check_configs.js
-check_queue.js
-get_user_id.js
-*.webp
-*.png

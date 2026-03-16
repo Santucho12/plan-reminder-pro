@@ -2,7 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ColumnMapping } from '@/types/client';
 import { differenceInDays, startOfDay, addDays } from 'date-fns';
 
-const cleanPhone = (phone: any) => {
+export const cleanPhone = (phone: any) => {
   if (!phone) return null;
   // Limpiar todo lo que no sea número
   let cleaned = String(phone).replace(/\D/g, '');
@@ -117,11 +117,20 @@ export async function fetchClients(userId: string) {
     .order('vencimiento', { ascending: true });
   if (error) throw error;
   
+  const today = startOfDay(new Date());
+
   // Instanciar como Date local al mediodía para evitar desfases de zona horaria (UTC-3).
-  return data.map((client: any) => ({
-    ...client,
-    vencimiento: new Date(`${client.vencimiento}T12:00:00`)
-  }));
+  // Y calcular DÍAS dinámicamente.
+  return data.map((client: any) => {
+    const vDate = new Date(`${client.vencimiento}T12:00:00`);
+    const diff = differenceInDays(startOfDay(vDate), today);
+    
+    return {
+      ...client,
+      vencimiento: vDate,
+      dias: diff.toString()
+    };
+  });
 }
 
 export async function fetchMessagesLog(userId: string) {
@@ -138,6 +147,39 @@ export async function fetchMessagesLog(userId: string) {
 export async function deleteClient(clientId: string) {
   const { error } = await supabase.from('clients').delete().eq('id', clientId);
   if (error) throw error;
+}
+
+export async function updateClient(clientId: string, updates: any) {
+  const finalUpdates = { ...updates };
+  if (finalUpdates.celular) {
+    finalUpdates.celular = cleanPhone(finalUpdates.celular);
+  }
+
+  const { data, error } = await supabase
+    .from('clients')
+    .update(finalUpdates)
+    .eq('id', clientId)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+}
+
+export async function createClient(userId: string, clientData: any) {
+  const finalData = { ...clientData };
+  if (finalData.celular) {
+    finalData.celular = cleanPhone(finalData.celular);
+  }
+
+  const { data, error } = await supabase
+    .from('clients')
+    .insert({ ...finalData, user_id: userId })
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
 }
 
 export async function triggerReminders(userId: string, mode: 'regular' | 'expired' | 'lost' = 'regular') {

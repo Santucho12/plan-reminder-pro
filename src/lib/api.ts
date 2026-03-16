@@ -125,10 +125,23 @@ export async function fetchClients(userId: string) {
     const vDate = new Date(`${client.vencimiento}T12:00:00`);
     const diff = differenceInDays(startOfDay(vDate), today);
     
+    // Normalizar estado basado en los días calculados
+    let estadoActual = client.estado;
+    const upper = String(client.estado).toUpperCase();
+    
+    // Solo sobreescribir si no es un estado final (Pagado)
+    if (!upper.includes('PAGADO')) {
+      if (diff === 0) estadoActual = 'Vence hoy';
+      else if (diff > 0 && diff <= 3) estadoActual = 'Por vencer';
+      else if (diff < 0) estadoActual = 'Vencido';
+      else if (diff > 3) estadoActual = 'Activo';
+    }
+
     return {
       ...client,
       vencimiento: vDate,
-      dias: diff.toString()
+      dias: diff.toString(),
+      estado: estadoActual
     };
   });
 }

@@ -26,7 +26,17 @@ const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--disable-extensions',
+        ]
+    },
+    webVersionCache: {
+        type: 'remote',
+        remotePath: 'https://raw.githubusercontent.com/nicaelacode/nicaela/master/nicaela/nicaela.json',
     }
 });
 
@@ -38,9 +48,15 @@ client.on('authenticated', () => {
     console.log('--- AUTENTICACIÓN EXITOSA ---');
 });
 
+let qrUploaded = false;
+
 client.on('qr', async (qr) => {
+    if (qrUploaded) {
+        console.log('QR regenerado (ignorado, ya se subió uno válido).');
+        return;
+    }
+    
     console.log('--- NUEVO QR GENERADO ---');
-    // Subir QR a Supabase para que el usuario lo vea en la web
     const { error } = await supabase
         .from('user_configs')
         .update({ 
@@ -52,7 +68,8 @@ client.on('qr', async (qr) => {
     if (error) {
         console.error('Error al subir QR a Supabase:', error.message);
     } else {
-        console.log('QR subido a Supabase con éxito.');
+        console.log('QR subido a Supabase con éxito. Escanealo desde la web.');
+        qrUploaded = true;
     }
 });
 
@@ -114,6 +131,7 @@ async function startPolling() {
 
                 try {
                     console.log(`Enviando mensaje a ${formattedPhone}...`);
+                    console.log(`Contenido: "${msg.mensaje.substring(0, 50)}..."`);
                     await client.sendMessage(formattedPhone, msg.mensaje);
                     
                     await supabase
@@ -137,6 +155,26 @@ async function startPolling() {
     }, 20000); 
 }
 
-client.initialize().catch(err => {
-    console.error('Error al inicializar el cliente:', err);
-});
+async function initializeWithRetry(maxRetries = 3) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            console.log(`Intento de inicialización ${attempt}/${maxRetries}...`);
+            await client.initialize();
+            return; // Success
+        } catch (err) {
+            console.error(`Error al inicializar el cliente (intento ${attempt}/${maxRetries}):`, err.message);
+            // Intentar cerrar el navegador para limpiar el estado
+            try { await client.destroy(); } catch (_) {}
+            if (attempt < maxRetries) {
+                const waitSec = attempt * 5;
+                console.log(`Reintentando en ${waitSec} segundos...`);
+                await new Promise(resolve => setTimeout(resolve, waitSec * 1000));
+            } else {
+                console.error('Se agotaron todos los intentos de inicialización.');
+                process.exit(1);
+            }
+        }
+    }
+}
+
+initializeWithRetry();

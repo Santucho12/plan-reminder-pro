@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "@/components/ui/select";
 import { Client } from '@/types/client';
-import { Download, Search, Filter, ArrowUpDown, Activity, Clock, UserPlus } from 'lucide-react';
+import { Download, Search, Filter, ArrowUpDown, Activity, Clock, UserPlus, Loader2 } from 'lucide-react';
 import { fetchClients, triggerReminders, updateClient, deleteClient, createClient } from '@/lib/api';
 
 const Index = () => {
@@ -26,6 +26,7 @@ const Index = () => {
   const [activeView, setActiveView] = useState('dashboard');
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [sendingCampaign, setSendingCampaign] = useState<string | null>(null);
 
   // Estados para búsqueda y filtrado
   const [searchTerm, setSearchTerm] = useState('');
@@ -466,19 +467,23 @@ const Index = () => {
 
                           <button
                             onClick={async () => {
+                              setSendingCampaign('regular');
                               try {
                                 const result = await triggerReminders(user.id, 'regular');
-                                toast.success('Campaña Ejecutada', {
-                                  description: `Se han despachado ${result?.expiry_sent + result?.reminders_sent} mensajes.`,
+                                toast.success('¡Mensajes enviandose!', {
+                                  description: `Se ha programado el envio de ${result?.expiry_sent + result?.reminders_sent} mensajes.`,
                                 });
                                 await loadClients();
                               } catch {
                                 toast.error('Error al enviar campaña');
+                              } finally {
+                                setSendingCampaign(null);
                               }
                             }}
-                            className="w-full h-14 rounded-2xl bg-primary text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:shadow-[0_0_25px_rgba(34,197,94,0.4)] transition-all active:scale-95"
+                            disabled={sendingCampaign !== null}
+                            className="w-full h-14 rounded-2xl bg-primary text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:shadow-[0_0_25px_rgba(34,197,94,0.4)] transition-all active:scale-95 disabled:opacity-50"
                           >
-                            Iniciar Automatización
+                            {sendingCampaign === 'regular' ? <Loader2 className="animate-spin" size={16} /> : 'Iniciar Automatización'}
                           </button>
                         </div>
                       </div>
@@ -510,19 +515,23 @@ const Index = () => {
 
                             <button
                               onClick={async () => {
+                                setSendingCampaign('expired');
                                 try {
                                   const result = await triggerReminders(user.id, 'expired');
-                                  toast.success('Cobranza Masiva Ejecutada', {
-                                    description: `Se han notificado a ${result?.expired_sent || 0} deudores.`
+                                  toast.success('¡Mensajes enviandose!', {
+                                    description: `Notificando a ${result?.expired_sent || 0} clientes con planes vencidos.`
                                   });
                                   await loadClients();
                                 } catch {
                                   toast.error('Error al ejecutar proceso');
+                                } finally {
+                                  setSendingCampaign(null);
                                 }
                               }}
-                              className="w-full h-14 rounded-2xl bg-rose-600 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-rose-700 transition-all shadow-xl shadow-rose-100"
+                              disabled={sendingCampaign !== null}
+                              className="w-full h-14 rounded-2xl bg-rose-600 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-rose-700 transition-all shadow-xl shadow-rose-100 disabled:opacity-50"
                             >
-                              Iniciar automatización
+                              {sendingCampaign === 'expired' ? <Loader2 className="animate-spin" size={16} /> : 'Iniciar automatización'}
                             </button>
                           </div>
                         </div>
@@ -532,7 +541,7 @@ const Index = () => {
                     <TabsContent value="lost" className="space-y-8 outline-none animate-in-slide">
                       <div className="bg-white rounded-[2rem] border border-border/60 shadow-xl p-12 flex flex-col space-y-8 items-start">
                         <h4 className="text-lg font-black uppercase tracking-widest text-blue-900 mb-4">RECUPERACIÓN DE CLIENTES</h4>
-                        <p className="text-base text-slate-700 font-medium leading-relaxed mb-6">Intentá recuperar clientes que no renuevan hace más de 30 días.<br/>Tu base de datos tiene <span className="font-black text-blue-900">{clients.filter(c => Number(c.dias) < -30).length} clientes</span> que no renueva su plan hace bastante.</p>
+                        <p className="text-base text-slate-700 font-medium leading-relaxed mb-6">Intentá recuperar clientes que no renuevan hace más de 30 días.<br />Tu base de datos tiene <span className="font-black text-blue-900">{clients.filter(c => Number(c.dias) < -30).length} clientes</span> que no renueva su plan hace bastante.</p>
 
                         <div className="bg-slate-50 p-6 rounded-2xl border border-border/40 w-full text-slate-700 text-base font-medium">
                           "Hola <span className='font-bold text-black'>[Nombre]</span>, hace tiempo que no nos vemos. ¿Te gustaría volver? Tenemos una oferta especial para renovar tu plan <span className='font-bold text-black'>[Plan]</span>. El total es <span className='font-bold text-black'>$[Total]</span>. Podes pagar desde este link: <br />🔗 <span className='font-bold text-blue-900 underline'>[Link Mercado Pago]</span> <br />¡Gracias!"
@@ -540,19 +549,23 @@ const Index = () => {
 
                         <button
                           onClick={async () => {
+                            setSendingCampaign('lost');
                             try {
                               const result = await triggerReminders(user.id, 'lost');
-                              toast.success('Campaña de Reconquista', {
-                                description: `Mensajes enviados a ${result?.lost_sent || 0} ex-clientes.`,
+                              toast.success('¡Mensajes enviandose!', {
+                                description: `Enviando propuestas a ${result?.lost_sent || 0} ex-clientes.`,
                               });
                               await loadClients();
                             } catch {
                               toast.error('Error al iniciar campaña');
+                            } finally {
+                              setSendingCampaign(null);
                             }
                           }}
-                          className="w-full h-14 rounded-2xl bg-blue-900 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:shadow-[0_0_25px_rgba(30,58,138,0.4)] transition-all active:scale-95 mt-6"
+                          disabled={sendingCampaign !== null}
+                          className="w-full h-14 rounded-2xl bg-blue-900 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:shadow-[0_0_25px_rgba(30,58,138,0.4)] transition-all active:scale-95 mt-6 disabled:opacity-50"
                         >
-                          Iniciar automatización
+                          {sendingCampaign === 'lost' ? <Loader2 className="animate-spin" size={16} /> : 'Iniciar automatización'}
                         </button>
                       </div>
                     </TabsContent>

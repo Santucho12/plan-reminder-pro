@@ -4,11 +4,21 @@ import { differenceInDays, startOfDay, addDays } from 'date-fns';
 
 const cleanPhone = (phone: any) => {
   if (!phone) return null;
-  const cleaned = String(phone).replace(/\D/g, '');
-  // Si tiene 10 dígitos y empieza con 11 (Baires), es 54911...
-  if (cleaned.length === 10 && cleaned.startsWith('11')) return `549${cleaned}`;
-  // En general para Argentina si tiene 10 dígitos le ponemos 54
-  if (cleaned.length === 10) return `54${cleaned}`;
+  // Limpiar todo lo que no sea número
+  let cleaned = String(phone).replace(/\D/g, '');
+  
+  // Caso Argentina: Número local de 10 dígitos (ej: 2915371541)
+  // WhatsApp requiere 54 + 9 + cod_area + numero
+  if (cleaned.length === 10) {
+    return `549${cleaned}`;
+  }
+
+  // Caso Argentina: Ya tiene el 54 pero le falta el 9 (ej: 542915371541 tiene 12 dígitos)
+  if (cleaned.length === 12 && cleaned.startsWith('54')) {
+    return `549${cleaned.substring(2)}`;
+  }
+
+  // Si ya tiene 13 dígitos y empieza con 549, está perfecto
   return cleaned;
 };
 
@@ -24,52 +34,65 @@ export async function insertClientsFromExcel(
   const validRows = rows.filter(row => row[mapping.nombre] && row[mapping.nombre].trim() !== '');
 
   const clients = validRows.map((row) => {
-    const vencimientoStr = row[mapping.vencimiento]?.trim();
-    let vencimiento: string;
+    const vencimientoStr = String(row[mapping.vencimiento] || '').trim();
+    let vencimientoDate = new Date();
 
-    // Intentar parsear fecha asumiendo formato DD/MM/YYYY primero si contiene barras
-    if (vencimientoStr.includes('/') || vencimientoStr.includes('-')) {
-      const parts = vencimientoStr.split(/[\/\-\.]/);
-      if (parts.length === 3) {
-        // Asume DD/MM/YYYY si el primer campo es <= 31 y el tercero es un año (4 dígitos o > 31)
-        const d_idx = parts[0].length <= 2 && Number(parts[0]) <= 31 ? 0 : 2;
-        const m_idx = 1;
-        const y_idx = d_idx === 0 ? 2 : 0;
-        
-        const day = Number(parts[d_idx]);
-        const month = Number(parts[m_idx]) - 1;
-        let year = Number(parts[y_idx]);
-        if (year < 100) year += 2000;
-
-        const d = new Date(year, month, day);
-        if (!isNaN(d.getTime())) {
-          vencimiento = d.toISOString().split('T')[0];
-        } else {
-          vencimiento = new Date().toISOString().split('T')[0];
-        }
-      } else {
-        const parsed = new Date(vencimientoStr);
-        vencimiento = !isNaN(parsed.getTime()) ? parsed.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+    // Función interna para parsear cualquier formato de Excel
+    const parseExcelDate = (str: string) => {
+      // Si es un número de serie de Excel (ej: 46101 para 16-Mar-2026)
+      const serial = Number(str);
+      if (!isNaN(serial) && serial > 10000 && serial < 100000) {
+        const utcDate = new Date(Date.UTC(1900, 0, serial - 1));
+        return utcDate;
       }
-    } else {
-      const parsed = new Date(vencimientoStr);
-      vencimiento = !isNaN(parsed.getTime()) ? parsed.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+      
+      if (str.includes('/') || str.includes('-')) {
+        const parts = str.split(/[\/\-\.]/).map(p => Number(p));
+        if (parts.length === 3) {
+          let y = parts.find(p => p > 31) || parts[2];
+          let year = y < 100 ? 2000 + y : y;
+          
+          let p1 = parts[0], p2 = parts[1];
+          let day = p1, month = p2;
+
+          if (p1 > 12) {
+             // 16/03/2026 -> p1 es el día
+             day = p1; month = p2;
+          } else if (p2 > 12) {
+             // 03/16/2026 -> p2 es el día
+             day = p2; month = p1;
+          } else {
+             // 06/07/2026 -> asumimos formato argentino DD/MM/YYYY
+             day = p1; month = p2;
+          }
+
+          const d = new Date(year, month - 1, day);
+          if (!isNaN(d.getTime())) return d;
+        }
+      }
+
+      const fallback = new Date(str);
+      return !isNaN(fallback.getTime()) ? fallback : new Date();
+    };
+
+    if (vencimientoStr) {
+      vencimientoDate = parseExcelDate(vencimientoStr);
     }
+    
+    // Convertir a string ISO respetando el día exacto
+    const vencimiento = vencimientoDate.toISOString().split('T')[0];
 
-    const today = startOfDay(new Date());
-    const vDate = startOfDay(new Date(vencimiento));
-    const diffDays = differenceInDays(vDate, today);
-
-    // Lógica corregida: Todo nuevo es 'pendiente' por defecto. 
-    // Solo marcamos 'vencido' si la fecha ya pasó.
-    // NUNCA marcamos 'pagado' automáticamente porque no sabemos si pagó el periodo que vence.
-    let estado: 'pendiente' | 'vencido' = 'pendiente';
-    if (diffDays < 0) estado = 'vencido';
+    // Nueva lógica: El campo 'estado' guardará el texto exacto de la columna 'Alertas' del Excel
+    const mappingKey = mapping.alertas || 'alertas';
+    const rawAlerta = row[mappingKey] || row['Alertas'] || row['alertas'] || '';
+    
+    // Si viene vacío del Excel, el estado será 'Pendiente' por defecto
+    const estado = rawAlerta || 'Pendiente';
 
     const celular = cleanPhone(row[mapping.celular]);
 
     return {
-      id: crypto.randomUUID(), // Generamos UUID siempre para evitar error de clave duplicada
+      id: crypto.randomUUID(),
       user_id: userId,
       nombre: row[mapping.nombre] || 'Sin Nombre',
       celular: celular || '',
@@ -77,7 +100,6 @@ export async function insertClientsFromExcel(
       vencimiento,
       total: parseFloat(String(row[mapping.total] || '0').replace(/[^0-9.,]/g, '').replace(',', '.')) || 0,
       estado,
-      alertas: row[mapping.alertas] || '',
       dias: row[mapping.dias] || '',
     };
   });
@@ -94,7 +116,12 @@ export async function fetchClients(userId: string) {
     .eq('user_id', userId)
     .order('vencimiento', { ascending: true });
   if (error) throw error;
-  return data;
+  
+  // Instanciar como Date local al mediodía para evitar desfases de zona horaria (UTC-3).
+  return data.map((client: any) => ({
+    ...client,
+    vencimiento: new Date(`${client.vencimiento}T12:00:00`)
+  }));
 }
 
 export async function fetchMessagesLog(userId: string) {
@@ -113,9 +140,9 @@ export async function deleteClient(clientId: string) {
   if (error) throw error;
 }
 
-export async function triggerReminders(userId: string) {
+export async function triggerReminders(userId: string, mode: 'regular' | 'expired' | 'lost' = 'regular') {
   const { data, error } = await supabase.functions.invoke('send-reminders', {
-    body: { userId }
+    body: { userId, origin: window.location.origin, mode }
   });
   if (error) throw error;
   return data;

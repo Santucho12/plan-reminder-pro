@@ -6,6 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+const MP_BASE_URL = 'https://api.mercadopago.com';
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -17,9 +19,11 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body = await req.json();
+    console.log('Webhook MP Recibido:', JSON.stringify(body));
     
-    // Mercado Pago sends webhook with payment info
-    const { type, data } = body;
+    // MP puede enviar notificaciones de tipo 'payment' (Webhooks) o 'topic: payment' (IPN)
+    const type = body.type || body.topic;
+    const paymentId = body.data?.id || body.id;
 
     if (type !== 'payment') {
       return new Response(JSON.stringify({ received: true, skipped: true }), {
@@ -27,42 +31,106 @@ serve(async (req) => {
       });
     }
 
-    // In production, you'd verify the payment with MP API
-    // For now, we look for the client by preference_id
-    const paymentId = data?.id;
-    const externalReference = body?.external_reference; // client_id stored as external_reference
-
-    if (!externalReference) {
-      return new Response(JSON.stringify({ error: 'Missing external_reference' }), {
+    if (!paymentId) {
+      console.error('Falta ID de pago en notificación');
+      return new Response(JSON.stringify({ error: 'Missing payment id' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Get the client
+    // Buscamos todos los user_configs que tengan token configurado
+    const { data: configs } = await supabase
+      .from('user_configs')
+      .select('user_id, mp_access_token')
+      .not('mp_access_token', 'is', null);
+
+    let paymentInfo = null;
+    let matchedConfig = null;
+
+    // Intentar verificar el pago con cada token hasta encontrar uno que funcione
+    if (configs) {
+      for (const config of configs) {
+        const token = String(config.mp_access_token).trim();
+        try {
+          const res = await fetch(`${MP_BASE_URL}/v1/payments/${paymentId}`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+
+          if (res.ok) {
+            paymentInfo = await res.json();
+            matchedConfig = config;
+            console.log(`Pago ${paymentId} verificado con token de usuario ${config.user_id}`);
+            break;
+          }
+        } catch (err) {
+          console.error(`Error verificando con token ${config.user_id}:`, err);
+          continue;
+        }
+      }
+    }
+
+    if (!paymentInfo) {
+      console.error(`No se pudo verificar el pago ${paymentId} con ningún token`);
+      return new Response(JSON.stringify({ error: 'Could not verify payment' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Verificar que el pago fue aprobado
+    if (paymentInfo.status !== 'approved') {
+      console.log(`Pago ${paymentId} tiene estado: ${paymentInfo.status}. Ignorando.`);
+      return new Response(JSON.stringify({ received: true, status: paymentInfo.status, skipped: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Obtener el client_id desde external_reference del pago verificado
+    const clientId = paymentInfo.external_reference;
+
+    if (!clientId) {
+      console.error(`Pago ${paymentId} no tiene external_reference`);
+      return new Response(JSON.stringify({ error: 'Missing external_reference in payment' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Buscar el cliente
     const { data: client, error: clientErr } = await supabase
       .from('clients')
       .select('*')
-      .eq('id', externalReference)
+      .eq('id', clientId)
       .single();
 
     if (clientErr || !client) {
+      console.error(`Cliente ID ${clientId} no encontrado para pago ${paymentId}`);
       return new Response(JSON.stringify({ error: 'Client not found' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Calculate new expiration date: 1 month from today
-    const newVencimiento = new Date();
+    // LÓGICA DE VENCIMIENTO:
+    // Si la fecha actual de vencimiento es mayor a hoy, sumamos 1 mes a esa fecha.
+    // Si ya venció, sumamos 1 mes desde hoy.
+    const currentExpiry = client.vencimiento ? new Date(client.vencimiento) : new Date();
+    const today = new Date();
+    
+    let baseDate = currentExpiry > today ? currentExpiry : today;
+    const newVencimiento = new Date(baseDate);
     newVencimiento.setMonth(newVencimiento.getMonth() + 1);
 
-    // Update client: set estado to pagado, update vencimiento
+    const newExpiryStr = newVencimiento.toISOString().split('T')[0];
+
+    // Actualizar cliente: estado PAGADO, nueva fecha de vencimiento
     const { error: updateErr } = await supabase
       .from('clients')
       .update({
-        estado: 'pagado',
-        vencimiento: newVencimiento.toISOString().split('T')[0],
+        estado: 'PAGADO',
+        vencimiento: newExpiryStr,
+        mercadopago_preference_id: null, // Limpiar preferencia usada
       })
       .eq('id', client.id);
 
@@ -70,27 +138,29 @@ serve(async (req) => {
       throw new Error(`Failed to update client: ${updateErr.message}`);
     }
 
-    // Log the payment confirmation
+    // Registrar confirmación de pago en el log
     await supabase.from('messages_log').insert({
       client_id: client.id,
       user_id: client.user_id,
       tipo: 'pago_confirmado',
-      mensaje: `Pago recibido de ${client.nombre} ${client.apellido}. Nueva fecha de vencimiento: ${newVencimiento.toISOString().split('T')[0]}`,
+      mensaje: `✅ Pago Recibido ($${paymentInfo.transaction_amount}) de ${client.nombre}. Nuevo vencimiento: ${newExpiryStr}`,
       enviado: true,
     });
 
+    console.log(`✅ Pago ${paymentId} procesado exitosamente para ${client.nombre}`);
+
     return new Response(JSON.stringify({ 
       success: true, 
-      client_id: client.id,
-      new_vencimiento: newVencimiento.toISOString().split('T')[0],
+      client: client.nombre,
+      new_vencimiento: newExpiryStr,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Error in mercadopago-webhook:', errorMessage);
+    console.error('❌ Error crítico en mercadopago-webhook:', errorMessage);
     return new Response(JSON.stringify({ success: false, error: errorMessage }), {
-      status: 500,
+      status: 200, // Devolvemos 200 para que MP deje de reintentar si es un error lógico nuestro
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

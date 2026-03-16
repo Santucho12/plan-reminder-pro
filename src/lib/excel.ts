@@ -8,7 +8,7 @@ export function parseExcelFile(file: File): Promise<{ headers: string[]; rows: R
     reader.onload = (e) => {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
         
         let jsonData: Record<string, string>[] = [];
         let sheetName = '';
@@ -32,15 +32,27 @@ export function parseExcelFile(file: File): Promise<{ headers: string[]; rows: R
           }
 
           if (headerRowIndex !== -1) {
-            // Re-parseamos desde esa fila
-            const dataWithHeaders = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, { 
+            // Re-parseamos desde esa fila con raw: true para preservar las fechas
+            const dataWithHeaders = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { 
               range: headerRowIndex, 
-              raw: false,
+              raw: true,
               defval: ''
             });
+
             if (dataWithHeaders.length > 0) {
-              jsonData = dataWithHeaders;
-              headers = Object.keys(dataWithHeaders[0]);
+              // Convertir valores a string, especialmente fechas a ISO
+              jsonData = dataWithHeaders.map(row => {
+                const cleanedRow: Record<string, string> = {};
+                for (const key in row) {
+                  if (row[key] instanceof Date) {
+                    cleanedRow[key] = row[key].toISOString();
+                  } else {
+                    cleanedRow[key] = String(row[key]);
+                  }
+                }
+                return cleanedRow;
+              });
+              headers = Object.keys(jsonData[0]);
               sheetName = name;
               break;
             }
@@ -97,7 +109,6 @@ export function mapRowsToClients(
     return {
       id: `client-${index}-${Date.now()}`,
       nombre: row[mapping.nombre] || '',
-      apellido: row[mapping.apellido] || '',
       celular: row[mapping.celular] || '',
       plan: row[mapping.plan] || '',
       vencimiento,
@@ -112,5 +123,26 @@ export function getClientStatus(vencimiento: Date): Client['estado'] {
   const diffDays = differenceInDays(startOfDay(vencimiento), today);
   if (diffDays < 0) return 'vencido';
   if (diffDays <= 3) return 'pendiente';
-  return 'pagado';
+  return 'pendiente';
+}
+
+export function exportToExcel(clients: any[]) {
+  const data = clients.map(c => ({
+    'Nombre': c.nombre,
+    'Celular': c.celular,
+    'Plan': c.plan,
+    'Fecha de Vencimiento': c.vencimiento instanceof Date 
+      ? c.vencimiento.toLocaleDateString('es-AR') 
+      : String(c.vencimiento),
+    'Total': c.total,
+    'Estado': c.estado,
+    'Dias': c.dias
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Clientes Actualizados');
+  
+  // Generar archivo y descargar
+  XLSX.writeFile(workbook, `PlanReminder_Actualizado_${new Date().toISOString().split('T')[0]}.xlsx`);
 }

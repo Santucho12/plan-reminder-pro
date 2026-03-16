@@ -23,6 +23,7 @@ if (!userId) {
 }
 
 const client = new Client({
+    authStrategy: new LocalAuth(),
     puppeteer: {
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
@@ -33,29 +34,45 @@ client.on('auth_failure', msg => {
     console.error('Error de autenticación:', msg);
 });
 
+client.on('authenticated', () => {
+    console.log('--- AUTENTICACIÓN EXITOSA ---');
+});
+
 client.on('qr', async (qr) => {
     console.log('--- NUEVO QR GENERADO ---');
     // Subir QR a Supabase para que el usuario lo vea en la web
-    await supabase
+    const { error } = await supabase
         .from('user_configs')
         .update({ 
             wpp_qr_code: qr, 
             wpp_status: 'pending_qr' 
         })
         .eq('user_id', userId);
+    
+    if (error) {
+        console.error('Error al subir QR a Supabase:', error.message);
+    } else {
+        console.log('QR subido a Supabase con éxito.');
+    }
 });
 
 client.on('ready', async () => {
-    console.log('Bot de WhatsApp conectado y listo.');
+    console.log('Bot de WhatsApp - Evento READY disparado.');
     
     // Actualizar estado en Supabase
-    await supabase
+    const { error } = await supabase
         .from('user_configs')
         .update({ 
             wpp_status: 'connected',
             wpp_qr_code: null
         })
         .eq('user_id', userId);
+
+    if (error) {
+        console.error('Error al actualizar estado a connected en Supabase:', error.message);
+    } else {
+        console.log('Estado actualizado a CONNECTED en Supabase.');
+    }
 
     console.log('Iniciando ciclo de procesamiento de mensajes...');
     startPolling();
@@ -73,21 +90,14 @@ async function startPolling() {
     // Polling cada 20 segundos (para cumplir con la meta de 3 mensajes por minuto)
     setInterval(async () => {
         try {
-            // Primero verificamos si el usuario tiene Token de MP
-            const { data: config } = await supabase
-                .from('user_configs')
-                .select('mp_access_token')
-                .eq('user_id', userId)
-                .single();
-
-            const mpToken = config?.mp_access_token;
-
             // Buscamos 1 mensaje no enviado a la vez de ESTE usuario
+            // Los links de MP ya vienen incluidos en el mensaje desde send-reminders
             const { data: messages, error } = await supabase
                 .from('messages_log')
                 .select('*, clients(celular)')
                 .eq('user_id', userId)
                 .eq('enviado', false)
+                .order('created_at', { ascending: true })
                 .limit(1); 
 
             if (error) throw error;
@@ -100,17 +110,11 @@ async function startPolling() {
                     continue;
                 }
 
-                let finalMensaje = msg.mensaje;
-                
-                // Si el mensaje tiene el placeholder de Mercado Pago y tenemos token, 
-                // podríamos generar un link real (pendiente implementar lógica MP)
-                // Por ahora solo enviamos lo que hay.
-
                 const formattedPhone = phone.includes('@c.us') ? phone : `${phone}@c.us`;
 
                 try {
                     console.log(`Enviando mensaje a ${formattedPhone}...`);
-                    await client.sendMessage(formattedPhone, finalMensaje);
+                    await client.sendMessage(formattedPhone, msg.mensaje);
                     
                     await supabase
                         .from('messages_log')
@@ -120,9 +124,10 @@ async function startPolling() {
                     console.log(`Mensaje ${msg.id} enviado con éxito.`);
                 } catch (sendError) {
                     console.error(`Error enviando mensaje ${msg.id}:`, sendError);
+                    // Marcamos "enviado: true" pero dejamos el error grabado para que el bot no se quede trabado infinitamente reintentando con este mismo mensaje defectuoso
                     await supabase
                         .from('messages_log')
-                        .update({ error: sendError.message })
+                        .update({ enviado: true, error: sendError.message })
                         .eq('id', msg.id);
                 }
             }

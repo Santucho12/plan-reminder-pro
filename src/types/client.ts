@@ -5,9 +5,8 @@ export interface Client {
   plan: string;
   vencimiento: Date;
   total: number;
-  estado: 'pagado' | 'pendiente' | 'vencido';
+  estado: string;
   ultimoMensaje?: Date;
-  alertas?: string;
   dias?: string;
 }
 

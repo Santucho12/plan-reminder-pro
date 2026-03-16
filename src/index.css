@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,88 +6,129 @@
 
 @layer base {
   :root {
-    --background: 60 10% 96%;
-    --foreground: 220 30% 14%;
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 220 30% 14%;
+    --card: 240 10% 4.9%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 30% 14%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 150 45% 42%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 158 94% 61%; /* Radiant Emerald */
+    --primary-foreground: 144 100% 5%;
 
-    --secondary: 220 14% 94%;
-    --secondary-foreground: 220 30% 14%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 220 14% 94%;
-    --muted-foreground: 220 10% 46%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
 
-    --accent: 220 70% 50%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
 
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 220 14% 90%;
-    --input: 220 14% 90%;
-    --ring: 150 45% 42%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 158 94% 61%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    /* Status colors */
-    --status-paid: 150 50% 94%;
-    --status-paid-text: 150 50% 28%;
-    --status-pending: 40 80% 92%;
-    --status-pending-text: 40 60% 30%;
-    --status-overdue: 0 70% 94%;
-    --status-overdue-text: 0 60% 40%;
+    /* Status colors - Premium Glows */
+    --status-paid: 158 94% 61% / 0.1;
+    --status-paid-text: 158 94% 61%;
+    --status-pending: 45 93% 47% / 0.15;
+    --status-pending-text: 45 93% 57%;
+    --status-overdue: 0 91% 71% / 0.15;
+    --status-overdue-text: 0 91% 71%;
 
-    /* Shadows */
-    --shadow-card: 0 1px 2px 0 rgba(0, 0, 0, 0.05), 0 4px 6px -1px rgba(0, 0, 0, 0.02);
-    --shadow-elevated: 0 4px 12px -2px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
-
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 220 30% 14%;
-    --sidebar-primary: 150 45% 42%;
+    --sidebar-background: 240 10% 3.9%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 158 94% 61%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 14% 96%;
-    --sidebar-accent-foreground: 220 30% 14%;
-    --sidebar-border: 220 14% 92%;
-    --sidebar-ring: 150 45% 42%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 240 4.9% 83.9%;
   }
 }
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border selection:bg-primary/30 selection:text-primary-foreground;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Geist Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size: 14px;
-    line-height: 1.6;
-    letter-spacing: -0.01em;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "flat";
+    overflow-x: hidden;
   }
 
-  h1, h2, h3, h4 {
-    font-family: 'Geist Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    letter-spacing: -0.04em;
-    font-weight: 600;
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/20 rounded-full hover:bg-muted-foreground/30 transition-colors;
   }
 
-  .font-mono {
-    font-family: 'IBM Plex Mono', monospace;
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold tracking-tight;
   }
 }
 
 @layer utilities {
-  .shadow-card {
-    box-shadow: var(--shadow-card);
+  .glass {
+    @apply bg-background/60 backdrop-blur-xl border border-white/10;
   }
-  .shadow-elevated {
-    box-shadow: var(--shadow-elevated);
+  
+  .glass-card {
+    @apply bg-card/50 backdrop-blur-md border border-white/5 shadow-2xl;
   }
+
+  .text-glow {
+    text-shadow: 0 0 20px hsl(var(--primary) / 0.5);
+  }
+
+  .glow-emerald {
+    box-shadow: 0 0 30px -10px hsl(var(--primary) / 0.4);
+  }
+
+  .glow-red {
+    box-shadow: 0 0 30px -10px hsl(0 91% 71% / 0.4);
+  }
+
+  .glow-orange {
+    box-shadow: 0 0 30px -10px hsl(45 93% 57% / 0.4);
+  }
+
+  .mesh-gradient {
+    background: radial-gradient(at 0% 0%, hsla(158, 94%, 61%, 0.05) 0, transparent 50%),
+                radial-gradient(at 100% 100%, hsla(158, 94%, 61%, 0.03) 0, transparent 50%);
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(0.98); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.float {
+  animation: float 6s ease-in-out infinite;
 }

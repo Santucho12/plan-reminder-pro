@@ -1,0 +1,71 @@
+--- CHECKING CONFIG ---
+MP Token exists: true
+MP Token Value: APP_USR-7061959...
+
+--- CHECKING RECENT MESSAGES ---
+- ID: 6c54d4d1-a945-47fb-b02c-489fe9133e74 | Tipo: vencimiento | Link: NO | Error: Ninguno
+  Mensaje: Hola FIESTI, tu plan *MAX (HBO MAX)* venció hoy. El total es *$500*.
+
+_Contactate con nosotros para regularizar tu situación._
+
+¡Gracias!...
+---
+- ID: 320dd89b-5111-4b71-bc47-d106d28bfb27 | Tipo: vencimiento | Link: NO | Error: Ninguno
+  Mensaje: Hola MATEO, tu plan *DIS  (disney)* venció hoy. El total es *$800*.
+
+_Contactate con nosotros para regularizar tu situación._
+
+¡Gracias!...
+---
+- ID: 0a272b33-b53f-4306-9ee0-ad995c2e7c36 | Tipo: vencimiento | Link: NO | Error: Ninguno
+  Mensaje: Hola valucha, tu plan *NET  (netflix)* venció hoy. El total es *$300*.
+
+_Contactate con nosotros para regularizar tu situación._
+
+¡Gracias!...
+---
+- ID: 0abb4250-4016-4185-a70a-7c328627d541 | Tipo: vencimiento | Link: NO | Error: Ninguno
+  Mensaje: Hola MATEO, tu plan *DIS  (disney)* venció hoy. El total es *$800*.
+
+_Contactate con nosotros para regularizar tu situación._
+
+¡Gracias!...
+---
+- ID: b35b93bf-8646-4ffc-baf2-6eb6a4298748 | Tipo: vencimiento | Link: NO | Error: Ninguno
+  Mensaje: Hola valucha, tu plan *NET  (netflix)* venció hoy. El total es *$300*.
+
+_Contactate con nosotros para regularizar tu situación._
+
+¡Gracias!...
+---
+- ID: 8d87e456-5378-4252-b4ab-4104de7ca629 | Tipo: recordatorio | Link: NO | Error: Ninguno
+  Mensaje: Hola FIESTI, como estás? te recordamos que tu plan *MAX (HBO MAX)* va a vencer en 3 días. El total es *$500*.
+
+¡Que tengas un buen día! 💪...
+---
+- ID: 1a79aa1a-211f-40a2-83ab-c950e1fece5e | Tipo: vencimiento | Link: NO | Error: Ninguno
+  Mensaje: Hola MATEO, tu plan *DIS  (disney)* venció hoy. El total es *$800*.
+
+_Contactate con nosotros para regularizar tu situación._
+
+¡Gracias!...
+---
+- ID: 10155bae-d850-4046-a5eb-5d1d8690ff6d | Tipo: vencimiento | Link: NO | Error: Ninguno
+  Mensaje: Hola valucha, tu plan *NET  (netflix)* venció hoy. El total es *$300*.
+
+_Contactate con nosotros para regularizar tu situación._
+
+¡Gracias!...
+---
+- ID: 6457b183-004d-44ae-b1de-b02a32c5bb50 | Tipo: recordatorio | Link: NO | Error: Ninguno
+  Mensaje: Hola FIESTI, como estás? te recordamos que tu plan *MAX (HBO MAX)* va a vencer en 3 días. El total es *$500*.
+
+¡Que tengas un buen día! 💪...
+---
+- ID: 85f3fd70-ea40-40cc-b03f-2222e1c5c701 | Tipo: vencimiento | Link: NO | Error: Ninguno
+  Mensaje: Hola MATEO, tu plan *DIS  (disney)* venció hoy. El total es *$800*.
+
+_Contactate con nosotros para regularizar tu situación._
+
+¡Gracias!...
+---

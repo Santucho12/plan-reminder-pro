@@ -3,7 +3,10 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
-import AppSidebar from '@/components/AppSidebar';
+import AppSidebar, { SidebarContent } from '@/components/AppSidebar';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Menu } from 'lucide-react';
 import SummaryCards from '@/components/SummaryCards';
 import ClientTable from '@/components/ClientTable';
 import ExcelUpload from '@/components/ExcelUpload';
@@ -15,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "@/components/ui/select";
 import { Client } from '@/types/client';
-import { Download, Search, Filter, ArrowUpDown, Activity, Clock, UserPlus } from 'lucide-react';
+import { Download, Search, Filter, ArrowUpDown, Activity, Clock, UserPlus, Zap } from 'lucide-react';
 import { fetchClients, triggerReminders, updateClient, deleteClient, createClient, fetchUserConfig } from '@/lib/api';
 
 const Index = () => {
@@ -34,6 +37,9 @@ const Index = () => {
   // Dialogo de cliente
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [clientToEdit, setClientToEdit] = useState<Client | null>(null);
+  
+  // Mobile Sidebar State
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     // Escuchar cambios en el estado de Mercado Pago (éxito)
@@ -193,7 +199,40 @@ const Index = () => {
         hasClients={clients.length > 0}
       />
 
-      <main className="ml-[260px] p-10 min-h-screen relative overflow-hidden">
+      {/* Mobile Header */}
+      <header className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-card/80 backdrop-blur-md border-b border-border px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+            <Zap className="text-white fill-white" size={18} />
+          </div>
+          <h1 className="text-xl font-display font-extrabold tracking-tight">
+            Fiesta<span className="text-primary">Cobra</span>
+          </h1>
+        </div>
+
+        <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
+          <SheetTrigger asChild>
+            <button className="p-2 rounded-xl bg-secondary/50 text-foreground">
+              <Menu size={20} />
+            </button>
+          </SheetTrigger>
+          <SheetContent side="left" className="p-0 border-none w-[280px]">
+            <SheetTitle className="sr-only">Menú de Navegación</SheetTitle>
+            <SheetDescription className="sr-only">Navega por las diferentes secciones del sistema de gestión de cobros.</SheetDescription>
+            <SidebarContent
+              activeView={activeView}
+              onViewChange={(view) => {
+                setActiveView(view);
+                setIsSidebarOpen(false);
+              }}
+              wppStatus={wppStatus}
+              hasClients={clients.length > 0}
+            />
+          </SheetContent>
+        </Sheet>
+      </header>
+
+      <main className="lg:ml-[260px] p-4 md:p-10 pt-20 lg:pt-10 min-h-screen relative overflow-hidden">
         {/* Decorative background gradients */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-[100px] -z-10" />
         <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-emerald-500/5 rounded-full translate-y-1/2 -translate-x-1/2 blur-[80px] -z-10" />

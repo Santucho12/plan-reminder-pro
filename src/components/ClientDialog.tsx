@@ -88,7 +88,7 @@ const ClientDialog = ({ client, onClose, onSave }: ClientDialogProps) => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                   <Phone size={12} className="text-primary" /> Celular (WhatsApp)
@@ -118,7 +118,7 @@ const ClientDialog = ({ client, onClose, onSave }: ClientDialogProps) => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                   <Calendar size={12} className="text-primary" /> Vencimiento

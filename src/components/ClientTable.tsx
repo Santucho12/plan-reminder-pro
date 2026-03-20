@@ -52,10 +52,10 @@ const ClientTable = ({ clients, onSendMessage, onEdit, onDelete }: ClientTablePr
               <th className="text-left py-4 px-6 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                 <div className="flex items-center gap-2"><User size={12} /> Cliente</div>
               </th>
-              <th className="text-left py-4 px-6 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+              <th className="hidden md:table-cell text-left py-4 px-6 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                 <div className="flex items-center gap-2"><Phone size={12} /> Contacto</div>
               </th>
-              <th className="text-left py-4 px-6 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Plataforma</th>
+              <th className="hidden md:table-cell text-left py-4 px-6 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Plataforma</th>
               <th className="text-left py-4 px-6 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                 <div className="flex items-center gap-2"><Calendar size={12} /> Vencimiento</div>
               </th>
@@ -64,7 +64,7 @@ const ClientTable = ({ clients, onSendMessage, onEdit, onDelete }: ClientTablePr
                 <div className="flex items-center justify-end gap-2"><DollarSign size={12} /> Total</div>
               </th>
               <th className="text-center py-4 px-6 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Estado</th>
-              <th className="text-center py-4 px-6 text-[10px] font-bold text-muted-foreground uppercase tracking-widest min-w-[200px]">Acción</th>
+              <th className="text-center py-4 px-6 text-[10px] font-bold text-muted-foreground uppercase tracking-widest lg:min-w-[200px]">Acción</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -88,12 +88,12 @@ const ClientTable = ({ clients, onSendMessage, onEdit, onDelete }: ClientTablePr
                       </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="hidden md:table-cell px-6 py-4">
                     <span className="text-xs font-mono font-medium text-muted-foreground bg-secondary/50 px-2 py-1 rounded-md">
                       {client.celular}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="hidden md:table-cell px-6 py-4">
                     <span className="text-sm font-medium text-foreground/80 line-clamp-1">{client.plan}</span>
                   </td>
                   <td className="px-6 py-4">
@@ -131,7 +131,7 @@ const ClientTable = ({ clients, onSendMessage, onEdit, onDelete }: ClientTablePr
                         "
                       >
                         <Send size={14} />
-                        Enviar
+                        <span className="hidden lg:inline">Enviar</span>
                       </button>
                       
                       <button

@@ -1,7 +1,17 @@
 require('dotenv').config();
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
+const http = require('http');
 const { createClient } = require('@supabase/supabase-js');
+
+// Health Check Server for Deployment
+const PORT = process.env.PORT || 3000;
+http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Bot is running\n');
+}).listen(PORT, () => {
+    console.log(`Salud check server corriendo en puerto ${PORT}`);
+});
 
 // Configuración Supabase
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -26,11 +36,15 @@ const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
         headless: true,
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null,
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
             '--disable-gpu',
+            '--no-first-run',
+            '--no-zygote',
+            '--single-process',
             '--disable-extensions',
         ]
     },

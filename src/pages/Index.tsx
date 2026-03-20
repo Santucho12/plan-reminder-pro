@@ -15,18 +15,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "@/components/ui/select";
 import { Client } from '@/types/client';
-import { Download, Search, Filter, ArrowUpDown, Activity, Clock, UserPlus, Loader2 } from 'lucide-react';
-import { fetchClients, triggerReminders, updateClient, deleteClient, createClient } from '@/lib/api';
+import { Download, Search, Filter, ArrowUpDown, Activity, Clock, UserPlus } from 'lucide-react';
+import { fetchClients, triggerReminders, updateClient, deleteClient, createClient, fetchUserConfig } from '@/lib/api';
 
 const Index = () => {
-  // ID de usuario fijo para modo "Sin Login"
-  const fixedUserId = '00000000-0000-0000-0000-000000000000';
-  const [user, setUser] = useState<any>({ id: fixedUserId });
-  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const [activeView, setActiveView] = useState('dashboard');
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [sendingCampaign, setSendingCampaign] = useState<string | null>(null);
 
   // Estados para búsqueda y filtrado
   const [searchTerm, setSearchTerm] = useState('');
@@ -54,7 +51,18 @@ const Index = () => {
   }, []);
 
   useEffect(() => {
-    // Ya no necesitamos listeners de auth
+    // Escuchar el estado de autenticación
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const loadClients = useCallback(async () => {
@@ -80,8 +88,8 @@ const Index = () => {
   }, [user]);
 
   useEffect(() => {
-    if (user) loadClients();
-  }, [user, loadClients]);
+    loadClients();
+  }, [loadClients]);
 
   const handleImport = async () => {
     await loadClients();
@@ -99,7 +107,7 @@ const Index = () => {
         await updateClient(clientToEdit.id, clientData);
         toast.success('Cliente actualizado correctamente');
       } else {
-        await createClient(user.id, clientData);
+        await createClient(user?.id || '', clientData);
         toast.success('Cliente creado correctamente');
       }
       loadClients();
@@ -128,28 +136,30 @@ const Index = () => {
   const [wppStatus, setWppStatus] = useState<string>('disconnected');
 
   useEffect(() => {
-    const fetchStatus = async () => {
-      const { data } = await supabase
-        .from('user_configs')
-        .select('wpp_status')
-        .eq('user_id', user.id)
-        .single();
-      if (data) setWppStatus(data.wpp_status);
+    if (!user) return;
+
+    const loadConfig = async () => {
+      const config = await fetchUserConfig(user.id);
+      if (config) setWppStatus(config.wpp_status);
     };
 
-    fetchStatus();
+    loadConfig();
 
     const channel = supabase
-      .channel('wpp-status-sidebar')
+      .channel(`index-config-${user.id}`)
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'user_configs', filter: `user_id=eq.${user.id}` },
-        (payload) => setWppStatus(payload.new.wpp_status)
+        (payload) => {
+          setWppStatus(payload.new.wpp_status);
+        }
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, [user.id]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   // Lógica de filtrado y ordenamiento
   const platforms = Array.from(new Set(clients.map(c => c.plan).filter(Boolean)));
@@ -169,6 +179,10 @@ const Index = () => {
     });
 
   if (loading) return null;
+
+  if (!user) {
+    return <AuthPage onAuth={loadClients} />;
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -458,7 +472,7 @@ const Index = () => {
                           <div className="space-y-3 mb-8">
                             <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-500">
                               <span>Usuarios alcanzados</span>
-                              <span className="text-white">{clients.filter(c => Number(c.dias) >= 0 && Number(c.dias) <= 3).length} Clientes</span>
+                              <span className="text-white">{clients.filter(c => Number(c.dias) === 0 || Number(c.dias) === 3).length} Clientes</span>
                             </div>
                             <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
                               <div className="h-full bg-primary w-[75%] rounded-full shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
@@ -467,23 +481,19 @@ const Index = () => {
 
                           <button
                             onClick={async () => {
-                              setSendingCampaign('regular');
                               try {
                                 const result = await triggerReminders(user.id, 'regular');
-                                toast.success('¡Mensajes enviandose!', {
-                                  description: `Se ha programado el envio de ${result?.expiry_sent + result?.reminders_sent} mensajes.`,
+                                toast.success('Campaña Ejecutada', {
+                                  description: `Se han despachado ${result?.expiry_sent + result?.reminders_sent} mensajes.`,
                                 });
                                 await loadClients();
                               } catch {
                                 toast.error('Error al enviar campaña');
-                              } finally {
-                                setSendingCampaign(null);
                               }
                             }}
-                            disabled={sendingCampaign !== null}
-                            className="w-full h-14 rounded-2xl bg-primary text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:shadow-[0_0_25px_rgba(34,197,94,0.4)] transition-all active:scale-95 disabled:opacity-50"
+                            className="w-full h-14 rounded-2xl bg-primary text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:shadow-[0_0_25px_rgba(34,197,94,0.4)] transition-all active:scale-95"
                           >
-                            {sendingCampaign === 'regular' ? <Loader2 className="animate-spin" size={16} /> : 'Iniciar Automatización'}
+                            Iniciar Automatización
                           </button>
                         </div>
                       </div>
@@ -515,23 +525,19 @@ const Index = () => {
 
                             <button
                               onClick={async () => {
-                                setSendingCampaign('expired');
                                 try {
                                   const result = await triggerReminders(user.id, 'expired');
-                                  toast.success('¡Mensajes enviandose!', {
-                                    description: `Notificando a ${result?.expired_sent || 0} clientes con planes vencidos.`
+                                  toast.success('Cobranza Masiva Ejecutada', {
+                                    description: `Se han notificado a ${result?.expired_sent || 0} deudores.`
                                   });
                                   await loadClients();
                                 } catch {
                                   toast.error('Error al ejecutar proceso');
-                                } finally {
-                                  setSendingCampaign(null);
                                 }
                               }}
-                              disabled={sendingCampaign !== null}
-                              className="w-full h-14 rounded-2xl bg-rose-600 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-rose-700 transition-all shadow-xl shadow-rose-100 disabled:opacity-50"
+                              className="w-full h-14 rounded-2xl bg-rose-600 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-rose-700 transition-all shadow-xl shadow-rose-100"
                             >
-                              {sendingCampaign === 'expired' ? <Loader2 className="animate-spin" size={16} /> : 'Iniciar automatización'}
+                              Iniciar automatización
                             </button>
                           </div>
                         </div>
@@ -544,28 +550,27 @@ const Index = () => {
                         <p className="text-base text-slate-700 font-medium leading-relaxed mb-6">Intentá recuperar clientes que no renuevan hace más de 30 días.<br />Tu base de datos tiene <span className="font-black text-blue-900">{clients.filter(c => Number(c.dias) < -30).length} clientes</span> que no renueva su plan hace bastante.</p>
 
                         <div className="bg-slate-50 p-6 rounded-2xl border border-border/40 w-full text-slate-700 text-base font-medium">
-                          "Hola <span className='font-bold text-black'>[Nombre]</span>, hace tiempo que no nos vemos. ¿Te gustaría volver? Tenemos una oferta especial para renovar tu plan <span className='font-bold text-black'>[Plan]</span>. El total es <span className='font-bold text-black'>$[Total]</span>. Podes pagar desde este link: <br />🔗 <span className='font-bold text-blue-900 underline'>[Link Mercado Pago]</span> <br />¡Gracias!"
+                          "Hola <span className='font-bold text-black'>[Nombre]</span>, ¿cómo estás? Tenemos una oferta especial para que vuelvas: renová tu plan <span className='font-bold text-black'>[Plan]</span> con un <span className='font-bold text-emerald-600'>10% de DESCUENTO</span>.<br />
+                          El total promocional es <span className='font-bold text-black'>$[Total - 10%]</span>. Podes pagar desde este link:<br />
+                          🔗 <span className='font-bold text-blue-900 underline'>[Link con Descuento]</span><br />
+                          ¡Gracias! 💪"
                         </div>
 
                         <button
                           onClick={async () => {
-                            setSendingCampaign('lost');
                             try {
                               const result = await triggerReminders(user.id, 'lost');
-                              toast.success('¡Mensajes enviandose!', {
-                                description: `Enviando propuestas a ${result?.lost_sent || 0} ex-clientes.`,
+                              toast.success('Campaña de Reconquista', {
+                                description: `Mensajes enviados a ${result?.lost_sent || 0} ex-clientes.`,
                               });
                               await loadClients();
                             } catch {
                               toast.error('Error al iniciar campaña');
-                            } finally {
-                              setSendingCampaign(null);
                             }
                           }}
-                          disabled={sendingCampaign !== null}
-                          className="w-full h-14 rounded-2xl bg-blue-900 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:shadow-[0_0_25px_rgba(30,58,138,0.4)] transition-all active:scale-95 mt-6 disabled:opacity-50"
+                          className="w-full h-14 rounded-2xl bg-blue-900 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:shadow-[0_0_25px_rgba(30,58,138,0.4)] transition-all active:scale-95 mt-6"
                         >
-                          {sendingCampaign === 'lost' ? <Loader2 className="animate-spin" size={16} /> : 'Iniciar automatización'}
+                          Iniciar automatización
                         </button>
                       </div>
                     </TabsContent>
@@ -581,7 +586,7 @@ const Index = () => {
 
               {activeView === 'upload' && (
                 <div className="max-w-2xl mx-auto pt-10 animate-in-slide">
-                  <ExcelUpload onImport={handleImport} userId={user.id} />
+                  <ExcelUpload userId={user.id} onImport={handleImport} />
                 </div>
               )}
             </motion.div>

@@ -103,6 +103,15 @@ client.on('disconnected', async () => {
         .eq('user_id', userId);
 });
 
+client.on('auth_failure', (msg) => {
+    console.error('Bot de WhatsApp - Error de autenticación:', msg);
+});
+
+client.on('error', (err) => {
+    console.error('Bot de WhatsApp - Error crítico detectado:', err.message);
+    // Intentar no re-iniciar si es algo no crítico, o avisar en Supabase.
+});
+
 async function startPolling() {
     // Polling cada 20 segundos (para cumplir con la meta de 3 mensajes por minuto)
     setInterval(async () => {
@@ -127,6 +136,13 @@ async function startPolling() {
                     continue;
                 }
 
+                // Validación básica de teléfono (mínimo 8 dígitos para un número real)
+                if (phone.replace(/[^0-9]/g, '').length < 8) {
+                    console.log(`Mensaje ${msg.id} tiene un teléfono inválido o muy corto (${phone}). Marcamos como error.`);
+                    await supabase.from('messages_log').update({ enviado: true, error: 'Número inválido' }).eq('id', msg.id);
+                    continue;
+                }
+
                 const formattedPhone = phone.includes('@c.us') ? phone : `${phone}@c.us`;
 
                 try {
@@ -141,16 +157,34 @@ async function startPolling() {
                     
                     console.log(`Mensaje ${msg.id} enviado con éxito.`);
                 } catch (sendError) {
-                    console.error(`Error enviando mensaje ${msg.id}:`, sendError);
-                    // Marcamos "enviado: true" pero dejamos el error grabado para que el bot no se quede trabado infinitamente reintentando con este mismo mensaje defectuoso
+                    const errorMsg = sendError.message || String(sendError);
+                    console.error(`Error enviando mensaje ${msg.id}:`, errorMsg);
+                    
+                    // Si el error es de "detached Frame", NO lo marcamos como enviado = true. 
+                    // Lo dejamos en false para que el bot lo intente de nuevo en el próximo ciclo cuando Puppeteer se estabilice.
+                    const isTemporallyError = errorMsg.includes('detached Frame');
+                    
                     await supabase
                         .from('messages_log')
-                        .update({ enviado: true, error: sendError.message })
+                        .update({ 
+                            enviado: !isTemporallyError, // Solo marcamos enviado true si NO es un error temporal
+                            error: errorMsg 
+                        })
                         .eq('id', msg.id);
+                        
+                    if (isTemporallyError) {
+                        console.log('⚠️ Error temporal detectado (Detached Frame). El mensaje será reintentado.');
+                        // Opcional: Si el error persiste demasiado, obligar a un reinicio
+                        // process.exit(1); 
+                    }
                 }
             }
         } catch (err) {
             console.error('Error en el ciclo de polling:', err.message);
+            if (err.message.includes('detached Frame')) {
+                console.error('❌ Error fatal de Puppeteer. Reiniciá el bot manualmente.');
+                process.exit(1); 
+            }
         }
     }, 20000); 
 }

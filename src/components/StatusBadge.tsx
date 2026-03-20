@@ -31,7 +31,7 @@ const StatusBadge = ({ status }: StatusBadgeProps) => {
       className: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
       icon: CheckCircle2
     };
-  } else if (upperStatus.includes('VENCIDO')) {
+  } else if (upperStatus.includes('VENCIDO') || upperStatus.includes('INACTIVO')) {
     styles = {
       className: 'bg-slate-500/10 text-slate-500 border-slate-500/20',
       icon: Ban

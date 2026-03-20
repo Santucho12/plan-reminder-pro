@@ -18,9 +18,11 @@ const MessagePreview = ({ client, onClose }: MessagePreviewProps) => {
       ? 'está por vencer'
       : 'está al día';
 
-  const message = client.estado === 'vencido'
-    ? `Hola ${client.nombre}, te informamos que tu plan *${client.plan}* venció el ${format(client.vencimiento, "dd 'de' MMMM", { locale: es })}. El total es *$${client.total.toLocaleString('es-AR')}*.\n\nPodés pagar desde este link:\n🔗 (se genera automáticamente al ejecutar recordatorios)\n\n¡Gracias!`
-    : `Hola ${client.nombre}, te recordamos que tu plan *${client.plan}* vence el ${format(client.vencimiento, "dd 'de' MMMM", { locale: es })}. El total es *$${client.total.toLocaleString('es-AR')}*.\n\n¡Que tengas un gran día! 💪`;
+  const message = Number(client.dias) === 0
+    ? `Hola ${client.nombre}, tu plan *${client.plan}* vence hoy. El total es *$${client.total.toLocaleString('es-AR')}*.\n\n¡Que tengas un gran dia!`
+    : Number(client.dias) < 0
+      ? `Hola ${client.nombre}, te informamos que tu plan *${client.plan}* venció el ${format(client.vencimiento, "dd 'de' MMMM", { locale: es })}. El total es *$${client.total.toLocaleString('es-AR')}*.\n\nPodés pagar desde este link:\n🔗 (se genera al enviar recordatorios automáticos)\n\n¡Gracias!`
+      : `Hola ${client.nombre}, te recordamos que tu plan *${client.plan}* vence el ${format(client.vencimiento, "dd 'de' MMMM", { locale: es })}. El total es *$${client.total.toLocaleString('es-AR')}*.\n\n¡Que tengas un gran día! 💪`;
 
   return (
     <motion.div
@@ -54,13 +56,21 @@ const MessagePreview = ({ client, onClose }: MessagePreviewProps) => {
         </div>
       </div>
 
-      <div className="p-5 border-t border-border">
-        <button className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-all">
-          <MessageSquare size={16} strokeWidth={1.5} />
+      <div className="p-5 border-t border-border bg-slate-50">
+        <button
+          onClick={() => {
+            const cleanPhone = client.celular.replace(/\D/g, '');
+            // Si el número empieza con 11 o similar y le falta el 549, lo agregamos (opcional, pero mejor limpiar)
+            const finalPhone = cleanPhone.length === 10 ? `549${cleanPhone}` : cleanPhone;
+            window.open(`https://wa.me/${finalPhone}?text=${encodeURIComponent(message)}`, '_blank');
+          }}
+          className="w-full h-14 rounded-2xl bg-[#25D366] text-white font-black text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-[#25D366]/20 hover:shadow-[#25D366]/30 active:scale-95 transition-all flex items-center justify-center gap-3"
+        >
+          <MessageSquare size={18} fill="white" />
           Enviar por WhatsApp
         </button>
-        <p className="text-xs text-muted-foreground text-center mt-2">
-          Requiere configurar la integración de WhatsApp
+        <p className="text-[10px] font-bold text-muted-foreground text-center mt-4 uppercase tracking-widest">
+          Envío manual directo
         </p>
       </div>
     </motion.div>

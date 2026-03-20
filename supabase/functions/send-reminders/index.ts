@@ -9,7 +9,7 @@ const corsHeaders = {
 
 const MP_BASE_URL = 'https://api.mercadopago.com';
 
-async function createMPPreference(client: any, mpToken: string, webhookUrl: string, appUrl: string) {
+async function createMPPreference(client: any, mpToken: string, webhookUrl: string, appUrl: string, overridePrice?: number) {
   // Limpiar título de caracteres especiales que puedan molestar a MP
   const cleanTitle = `Plan ${client.plan || 'Mensual'}`.replace(/[^\w\s]/gi, '').substring(0, 30);
   const cleanName = client.nombre.replace(/[^\w\s]/gi, '').substring(0, 30);
@@ -22,7 +22,7 @@ async function createMPPreference(client: any, mpToken: string, webhookUrl: stri
         description: `Servicio ${cleanTitle}`.substring(0, 60),
         quantity: 1,
         currency_id: 'ARS',
-        unit_price: Math.round(Number(client.total) * 100) / 100,
+        unit_price: overridePrice !== undefined ? Math.round(overridePrice * 100) / 100 : Math.round(Number(client.total) * 100) / 100,
       }
     ],
     payer: {
@@ -121,35 +121,31 @@ serve(async (req) => {
     const expiredClients = [];
     const lostClients = [];
 
-    // Calcular dias DINÁMICAMENTE desde la fecha de vencimiento
-    const today = new Date();
+    // Calcular hoy ajustado a UTC-3 (Argentina) para que coincida con lo que el usuario ve en su navegador
+    const today = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" }));
     today.setHours(0, 0, 0, 0);
+
+    console.log(`[DEBUG] Today (ArgTime): ${today.toISOString()}`);
 
     for (const client of allClients || []) {
       if (!client.vencimiento) continue;
 
-      // Usamos el mismo método que el frontend para calcular la diferencia de días
       const vencDate = new Date(`${client.vencimiento}T00:00:00`);
       const diffTime = vencDate.getTime() - today.getTime();
       const diasNum = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
       if (mode === 'lost') {
-        if (diasNum <= -31) {
-          lostClients.push(client);
-        }
+        if (diasNum <= -31) lostClients.push(client);
       } else if (mode === 'expired') {
-        if (diasNum <= -1 && diasNum >= -30) {
-          expiredClients.push(client);
-        }
+        if (diasNum <= -1 && diasNum >= -30) expiredClients.push(client);
       } else {
-        // Modo Regular
-        if (diasNum >= 1 && diasNum <= 3) {
-          regularReminders.push({ ...client, diasNumCalculated: diasNum });
-        } else if (diasNum === 0) {
-          regularExpirations.push({ ...client, diasNumCalculated: diasNum });
-        }
+        if (diasNum === 3) regularReminders.push({ ...client, diasNumCalculated: diasNum });
+        else if (diasNum === 0) regularExpirations.push({ ...client, diasNumCalculated: diasNum });
       }
     }
+
+    console.log(`[DEBUG] Found: ${regularReminders.length} reminders (3d), ${regularExpirations.length} expirations (0d)`);
+    console.log(`[DEBUG] Found: ${expiredClients.length} expired (-1 to -30d), ${lostClients.length} lost (<= -31d)`);
 
     const results = { reminders_sent: 0, expiry_sent: 0, expired_sent: 0, lost_sent: 0, skipped: 0, errors: [] as string[] };
 
@@ -158,7 +154,7 @@ serve(async (req) => {
       for (const client of regularReminders) {
         if (alreadySentSet.has(`${client.id}::recordatorio`)) { results.skipped++; continue; }
         if (sentPhones.has(client.celular)) { results.skipped++; continue; }
-        
+
         let linkPago = '';
         let mpErrorDetail = null;
         if (mpToken && Number(client.total) > 0) {
@@ -175,8 +171,8 @@ serve(async (req) => {
         const diasNum = (client as any).diasNumCalculated;
         const diasTexto = diasNum === 1 ? 'mañana' : `en ${diasNum} días`;
         const linkTexto = linkPago ? `\n\nPodes ir pagando desde acá para renovar:\n🔗 ${linkPago}` : '';
-        const mensaje = `Hola ${client.nombre}, como estás? te recordamos que tu plan *${client.plan}* va a vencer ${diasTexto}. El total es *$${client.total}*.${linkTexto}\n\n¡Que tengas un buen día! 💪`;
-        
+        const mensaje = `Hola ${client.nombre}, como estás? te recordamos que tu plan *${client.plan}* va a vencer ${diasTexto}.\n El total es *$${client.total}*.\n\n¡Que tengas un buen día! 💪`;
+
         await supabase.from('messages_log').insert({
           client_id: client.id, user_id: client.user_id, tipo: 'recordatorio', mensaje, enviado: false, error: mpErrorDetail,
         });
@@ -185,15 +181,15 @@ serve(async (req) => {
       }
 
       const debugTokens: any[] = [];
-      
+
       for (const client of regularExpirations) {
         if (alreadySentSet.has(`${client.id}::vencimiento`)) { results.skipped++; continue; }
         if (sentPhones.has(client.celular)) { results.skipped++; continue; }
-        
+
         let linkPago = '';
         let mpErrorDetail = null;
         let tryingMP = false;
-        
+
         if (mpToken && Number(client.total) > 0) {
           tryingMP = true;
           const cleanToken = mpToken.trim();
@@ -206,7 +202,7 @@ serve(async (req) => {
             results.errors.push(`MP Error para ${client.nombre}: ${mpErrorDetail}`);
           }
         }
-        
+
         debugTokens.push({
           cliente: client.nombre,
           total: client.total,
@@ -225,13 +221,13 @@ serve(async (req) => {
         results.expiry_sent++;
       }
 
-    } 
+    }
     // 2. Procesar Modo Expired (-1 a -30 días)
     else if (mode === 'expired') {
       for (const client of expiredClients) {
         if (alreadySentSet.has(`${client.id}::vencimiento`)) { results.skipped++; continue; }
         if (sentPhones.has(client.celular)) { results.skipped++; continue; }
-        
+
         let linkPago = '';
         let mpErrorDetail = null;
         if (mpToken && Number(client.total) > 0) {
@@ -258,12 +254,16 @@ serve(async (req) => {
       for (const client of lostClients) {
         if (alreadySentSet.has(`${client.id}::vencimiento`)) { results.skipped++; continue; }
         if (sentPhones.has(client.celular)) { results.skipped++; continue; }
-        
+
+        // 10% Descuento para reconquista
+        const originalTotal = Number(client.total) || 0;
+        const discountedTotal = Math.round(originalTotal * 0.9);
+
         let linkPago = '';
         let mpErrorDetail = null;
-        if (mpToken && Number(client.total) > 0) {
+        if (mpToken && discountedTotal > 0) {
           try {
-            const mpPreference = await createMPPreference(client, mpToken.trim(), webhookUrl, appUrl);
+            const mpPreference = await createMPPreference(client, mpToken.trim(), webhookUrl, appUrl, discountedTotal);
             linkPago = mpPreference.init_point;
             await supabase.from('clients').update({ mercadopago_preference_id: mpPreference.id }).eq('id', client.id);
           } catch (e: any) {
@@ -271,8 +271,8 @@ serve(async (req) => {
             results.errors.push(`MP Error para ${client.nombre}: ${mpErrorDetail}`);
           }
         }
-        const linkTexto = linkPago ? `\n\nTe mando el link de pago: 🔗 ${linkPago}` : '';
-        const mensaje = `Hola ${client.nombre}, notamos que hace un tiempo tu plan *${client.plan}* se encuentra vencido. El total para renovarlo es *$${client.total}*.\n\n¿Te gustaría renovarlo?${linkTexto}`;
+        const linkTexto = linkPago ? `\n\nPodes pagar desde este link con el descuento ya aplicado:\n🔗 ${linkPago}` : '';
+        const mensaje = `Hola ${client.nombre}, hace tiempo que no usas el servicio. ¿Te gustaría volver? Tenemos una oferta especial para renovar tu plan *${client.plan}* con un *10% de DESCUENTO*.\nEl total promocional es *$${discountedTotal}*.${linkTexto}\n\n¡Gracias! 💪`;
         await supabase.from('messages_log').insert({
           client_id: client.id, user_id: client.user_id, tipo: 'vencimiento', mensaje, enviado: false, error: mpErrorDetail,
         });

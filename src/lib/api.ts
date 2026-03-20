@@ -87,7 +87,7 @@ export async function insertClientsFromExcel(
     const rawAlerta = row[mappingKey] || row['Alertas'] || row['alertas'] || '';
     
     // Si viene vacío del Excel, el estado será 'Pendiente' por defecto
-    const estado = rawAlerta || 'Pendiente';
+    const estado = 'pendiente';
 
     const celular = cleanPhone(row[mapping.celular]);
 
@@ -100,7 +100,7 @@ export async function insertClientsFromExcel(
       vencimiento,
       total: parseFloat(String(row[mapping.total] || '0').replace(/[^0-9.,]/g, '').replace(',', '.')) || 0,
       estado,
-      dias: row[mapping.dias] || '',
+      dias: Number(row[mapping.dias]) || 0,
     };
   });
 
@@ -187,7 +187,12 @@ export async function createClient(userId: string, clientData: any) {
 
   const { data, error } = await supabase
     .from('clients')
-    .insert({ ...finalData, user_id: userId })
+    .insert({ 
+      ...finalData, 
+      id: crypto.randomUUID(),
+      user_id: userId, 
+      dias: finalData.dias || 0 
+    })
     .select()
     .single();
   
@@ -197,7 +202,11 @@ export async function createClient(userId: string, clientData: any) {
 
 export async function triggerReminders(userId: string, mode: 'regular' | 'expired' | 'lost' = 'regular') {
   const { data, error } = await supabase.functions.invoke('send-reminders', {
-    body: { userId, origin: window.location.origin, mode }
+    body: { userId, origin: window.location.origin, mode },
+    headers: {
+      'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
+    }
   });
   if (error) throw error;
   return data;
@@ -208,9 +217,9 @@ export async function fetchUserConfig(userId: string) {
     .from('user_configs')
     .select('*')
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
   
-  if (error && error.code !== 'PGRST116') throw error;
+  if (error) throw error;
   return data;
 }
 
@@ -219,7 +228,7 @@ export async function updateUserConfig(userId: string, updates: any) {
     .from('user_configs')
     .upsert({ user_id: userId, ...updates, updated_at: new Date().toISOString() })
     .select()
-    .single();
+    .maybeSingle();
   
   if (error) throw error;
   return data;

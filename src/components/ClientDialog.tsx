@@ -17,7 +17,7 @@ const ClientDialog = ({ client, onClose, onSave }: ClientDialogProps) => {
     plan: '',
     vencimiento: format(new Date(), 'yyyy-MM-dd'),
     total: 0,
-    estado: 'Activo'
+    estado: 'activo'
   });
   const [loading, setLoading] = useState(false);
 
@@ -142,7 +142,11 @@ const ClientDialog = ({ client, onClose, onSave }: ClientDialogProps) => {
                     required
                     type="number"
                     value={formData.total}
-                    onChange={(e) => setFormData({ ...formData, total: parseFloat(e.target.value) || 0 })}
+                    min="0"
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      setFormData({ ...formData, total: val < 0 ? 0 : val });
+                    }}
                     className="w-full h-12 rounded-xl bg-secondary/30 border-none pl-8 pr-4 text-sm font-bold focus:ring-2 focus:ring-primary/20 transition-all"
                     placeholder="0"
                   />
@@ -150,20 +154,6 @@ const ClientDialog = ({ client, onClose, onSave }: ClientDialogProps) => {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                Estado Actual
-              </label>
-              <select
-                value={formData.estado}
-                onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
-                className="w-full h-12 rounded-xl bg-secondary/30 border-none px-4 text-sm font-semibold focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
-              >
-                <option value="Activo">Activo</option>
-                <option value="Pendiente">Pendiente</option>
-                <option value="Vencido">Vencido</option>
-              </select>
-            </div>
           </div>
 
           <div className="pt-4 flex gap-3">

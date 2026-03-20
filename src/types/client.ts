@@ -1,13 +1,14 @@
 export interface Client {
   id: string;
   nombre: string;
+  apellido?: string;
   celular: string;
   plan: string;
   vencimiento: Date;
   total: number;
   estado: string;
   ultimoMensaje?: Date;
-  dias?: string;
+  dias?: number;
 }
 
 export type ColumnMapping = {

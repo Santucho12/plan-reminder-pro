@@ -83,7 +83,7 @@ const ClientTable = ({ clients, onSendMessage, onEdit, onDelete }: ClientTablePr
                       <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs uppercase shadow-sm">
                         {client.nombre.charAt(0)}
                       </div>
-                      <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-1">
+                      <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 max-w-[110px] break-words whitespace-normal block">
                         {client.nombre}
                       </span>
                     </div>
@@ -93,8 +93,8 @@ const ClientTable = ({ clients, onSendMessage, onEdit, onDelete }: ClientTablePr
                       {client.celular}
                     </span>
                   </td>
-                  <td className="hidden md:table-cell px-6 py-4">
-                    <span className="text-sm font-medium text-foreground/80 line-clamp-1">{client.plan}</span>
+                  <td className="hidden md:table-cell px-6 py-4 max-w-[90px] align-middle text-center">
+                    <span className="text-[10px] font-medium text-foreground/80 max-w-[90px] break-words whitespace-normal block mx-auto flex flex-col items-center justify-center h-full" style={{wordBreak: 'break-word', whiteSpace: 'normal'}}> {client.plan} </span>
                   </td>
                   <td className="px-6 py-4">
                     <span className="text-sm font-medium text-foreground/80">

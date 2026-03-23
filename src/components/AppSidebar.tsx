@@ -16,9 +16,9 @@ const navItems = [
   { id: 'config', label: 'Configuración', icon: Settings },
 ];
 
-export const SidebarContent = ({ activeView, onViewChange, wppStatus, hasClients }: AppSidebarProps) => {
+const AppSidebar = ({ activeView, onViewChange, wppStatus, hasClients }: AppSidebarProps) => {
   return (
-    <div className="flex flex-col h-full bg-card">
+    <aside className="fixed left-0 top-0 h-full w-[260px] border-r border-border bg-card flex flex-col z-50">
       {/* Brand Header */}
       <div className="p-8 pb-6">
         <div className="flex items-center gap-3">
@@ -112,14 +112,6 @@ export const SidebarContent = ({ activeView, onViewChange, wppStatus, hasClients
           </button>
         )}
       </div>
-    </div>
-  );
-};
-
-const AppSidebar = (props: AppSidebarProps) => {
-  return (
-    <aside className="fixed left-0 top-0 h-full w-[260px] border-r border-border bg-card flex-col z-50 hidden lg:flex">
-      <SidebarContent {...props} />
     </aside>
   );
 };

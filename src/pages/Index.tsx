@@ -3,10 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
-import AppSidebar, { SidebarContent } from '@/components/AppSidebar';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { Menu } from 'lucide-react';
+import AppSidebar from '@/components/AppSidebar';
 import SummaryCards from '@/components/SummaryCards';
 import ClientTable from '@/components/ClientTable';
 import ExcelUpload from '@/components/ExcelUpload';
@@ -18,8 +15,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "@/components/ui/select";
 import { Client } from '@/types/client';
-import { Download, Search, Filter, ArrowUpDown, Activity, Clock, UserPlus, Zap } from 'lucide-react';
-import { fetchClients, triggerReminders, updateClient, deleteClient, createClient, fetchUserConfig } from '@/lib/api';
+import { Download, Search, Filter, ArrowUpDown, Activity, Clock, UserPlus } from 'lucide-react';
+import { fetchClients, triggerReminders, updateClient, deleteClient, createClient } from '@/lib/api';
+import { exportToExcel } from '@/lib/excel';
 
 const Index = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -37,9 +35,6 @@ const Index = () => {
   // Dialogo de cliente
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [clientToEdit, setClientToEdit] = useState<Client | null>(null);
-  
-  // Mobile Sidebar State
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     // Escuchar cambios en el estado de Mercado Pago (éxito)
@@ -57,15 +52,18 @@ const Index = () => {
   }, []);
 
   useEffect(() => {
-    // Escuchar el estado de autenticación
+    // 1. Obtener sesión inicial
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
+    // 2. Escuchar cambios de auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      setLoading(false);
+      if (_event === 'SIGNED_IN') {
+        setActiveView('dashboard');
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -94,8 +92,10 @@ const Index = () => {
   }, [user]);
 
   useEffect(() => {
-    loadClients();
-  }, [loadClients]);
+    if (user) {
+      loadClients();
+    }
+  }, [loadClients, user]);
 
   const handleImport = async () => {
     await loadClients();
@@ -112,8 +112,8 @@ const Index = () => {
       if (clientToEdit) {
         await updateClient(clientToEdit.id, clientData);
         toast.success('Cliente actualizado correctamente');
-      } else {
-        await createClient(user?.id || '', clientData);
+      } else if (user) {
+        await createClient(user.id, clientData);
         toast.success('Cliente creado correctamente');
       }
       loadClients();
@@ -141,31 +141,7 @@ const Index = () => {
 
   const [wppStatus, setWppStatus] = useState<string>('disconnected');
 
-  useEffect(() => {
-    if (!user) return;
-
-    const loadConfig = async () => {
-      const config = await fetchUserConfig(user.id);
-      if (config) setWppStatus(config.wpp_status);
-    };
-
-    loadConfig();
-
-    const channel = supabase
-      .channel(`index-config-${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'user_configs', filter: `user_id=eq.${user.id}` },
-        (payload) => {
-          setWppStatus(payload.new.wpp_status);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user]);
+  // Eliminado: lógica de user_configs y canales dependientes de user.id
 
   // Lógica de filtrado y ordenamiento
   const platforms = Array.from(new Set(clients.map(c => c.plan).filter(Boolean)));
@@ -187,7 +163,7 @@ const Index = () => {
   if (loading) return null;
 
   if (!user) {
-    return <AuthPage onAuth={loadClients} />;
+    return <AuthPage onAuth={() => {}} />;
   }
 
   return (
@@ -199,40 +175,7 @@ const Index = () => {
         hasClients={clients.length > 0}
       />
 
-      {/* Mobile Header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-card/80 backdrop-blur-md border-b border-border px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <Zap className="text-white fill-white" size={18} />
-          </div>
-          <h1 className="text-xl font-display font-extrabold tracking-tight">
-            Fiesta<span className="text-primary">Cobra</span>
-          </h1>
-        </div>
-
-        <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
-          <SheetTrigger asChild>
-            <button className="p-2 rounded-xl bg-secondary/50 text-foreground">
-              <Menu size={20} />
-            </button>
-          </SheetTrigger>
-          <SheetContent side="left" className="p-0 border-none w-[280px]">
-            <SheetTitle className="sr-only">Menú de Navegación</SheetTitle>
-            <SheetDescription className="sr-only">Navega por las diferentes secciones del sistema de gestión de cobros.</SheetDescription>
-            <SidebarContent
-              activeView={activeView}
-              onViewChange={(view) => {
-                setActiveView(view);
-                setIsSidebarOpen(false);
-              }}
-              wppStatus={wppStatus}
-              hasClients={clients.length > 0}
-            />
-          </SheetContent>
-        </Sheet>
-      </header>
-
-      <main className="lg:ml-[260px] p-4 md:p-10 pt-20 lg:pt-10 min-h-screen relative overflow-hidden">
+      <main className="ml-[260px] p-10 min-h-screen relative overflow-hidden">
         {/* Decorative background gradients */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-[100px] -z-10" />
         <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-emerald-500/5 rounded-full translate-y-1/2 -translate-x-1/2 blur-[80px] -z-10" />
@@ -251,9 +194,11 @@ const Index = () => {
                   <>
                     <h2 className="text-4xl font-display font-extrabold tracking-tight">Panel de Control</h2>
                     <p className="text-muted-foreground font-medium mt-2">
-                      {clients.length > 0
-                        ? `Gestionando ${clients.length} clientes en el sistema.`
-                        : 'Cargá tu base de datos para comenzar la automatización.'}
+                      <span>
+                        {clients.length > 0
+                          ? `Gestionando ${clients.length} clientes en el sistema.`
+                          : 'Cargá tu base de datos para comenzar la automatización.'}
+                      </span>
                     </p>
                   </>
                 )}
@@ -263,16 +208,25 @@ const Index = () => {
                       <h2 className="text-4xl font-display font-extrabold tracking-tight">Gestión de Clientes</h2>
                       <p className="text-muted-foreground font-medium mt-2">Buscá, filtrá y organizá tu base de datos.</p>
                     </div>
-                    <button
-                      onClick={() => {
-                        setClientToEdit(null);
-                        setIsDialogOpen(true);
-                      }}
-                      className="px-6 h-12 rounded-2xl bg-primary text-white font-bold text-sm uppercase tracking-widest shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-95 transition-all flex items-center justify-center gap-3"
-                    >
-                      <UserPlus size={18} />
-                      Nuevo Cliente
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => exportToExcel(clients)}
+                        className="px-6 h-12 rounded-2xl bg-white border border-border text-slate-800 font-bold text-sm uppercase tracking-widest shadow-sm hover:bg-slate-50 active:scale-95 transition-all flex items-center justify-center gap-3"
+                      >
+                        <Download size={18} />
+                        Exportar
+                      </button>
+                      <button
+                        onClick={() => {
+                          setClientToEdit(null);
+                          setIsDialogOpen(true);
+                        }}
+                        className="px-6 h-12 rounded-2xl bg-primary text-white font-bold text-sm uppercase tracking-widest shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-95 transition-all flex items-center justify-center gap-3"
+                      >
+                        <UserPlus size={18} />
+                        Nuevo Cliente
+                      </button>
+                    </div>
                   </div>
                 )}
                 {activeView === 'mensajes' && (
@@ -520,6 +474,7 @@ const Index = () => {
 
                           <button
                             onClick={async () => {
+                              if (!user) return;
                               try {
                                 const result = await triggerReminders(user.id, 'regular');
                                 toast.success('Campaña Ejecutada', {
@@ -557,13 +512,14 @@ const Index = () => {
                               <p className="text-[11px] text-muted-foreground leading-relaxed">Notificá a los clientes que se les terminó el plan hace poco tiempo.</p>
                               <div className="pt-4">
                                 <div className="inline-block px-3 py-1 rounded-full bg-rose-100 text-rose-600 font-black text-[9px] uppercase tracking-tighter">
-                                  {clients.filter(c => Number(c.dias) < 0 && Number(c.dias) >= -30).length}  --  Usuarios encontrados
+                                  <span>{clients.filter(c => Number(c.dias) < 0 && Number(c.dias) >= -30).length}  --  Usuarios encontrados</span>
                                 </div>
                               </div>
                             </div>
 
                             <button
                               onClick={async () => {
+                                if (!user) return;
                                 try {
                                   const result = await triggerReminders(user.id, 'expired');
                                   toast.success('Cobranza Masiva Ejecutada', {
@@ -586,17 +542,15 @@ const Index = () => {
                     <TabsContent value="lost" className="space-y-8 outline-none animate-in-slide">
                       <div className="bg-white rounded-[2rem] border border-border/60 shadow-xl p-12 flex flex-col space-y-8 items-start">
                         <h4 className="text-lg font-black uppercase tracking-widest text-blue-900 mb-4">RECUPERACIÓN DE CLIENTES</h4>
-                        <p className="text-base text-slate-700 font-medium leading-relaxed mb-6">Intentá recuperar clientes que no renuevan hace más de 30 días.<br />Tu base de datos tiene <span className="font-black text-blue-900">{clients.filter(c => Number(c.dias) < -30).length} clientes</span> que no renueva su plan hace bastante.</p>
+                        <p className="text-base text-slate-700 font-medium leading-relaxed mb-6"><span>Intentá recuperar clientes que no renuevan hace más de 30 días.<br/>Tu base de datos tiene <span className="font-black text-blue-900">{clients.filter(c => Number(c.dias) < -30).length} clientes</span> que no renueva su plan hace bastante.</span></p>
 
                         <div className="bg-slate-50 p-6 rounded-2xl border border-border/40 w-full text-slate-700 text-base font-medium">
-                          "Hola <span className='font-bold text-black'>[Nombre]</span>, ¿cómo estás? Tenemos una oferta especial para que vuelvas: renová tu plan <span className='font-bold text-black'>[Plan]</span> con un <span className='font-bold text-emerald-600'>10% de DESCUENTO</span>.<br />
-                          El total promocional es <span className='font-bold text-black'>$[Total - 10%]</span>. Podes pagar desde este link:<br />
-                          🔗 <span className='font-bold text-blue-900 underline'>[Link con Descuento]</span><br />
-                          ¡Gracias! 💪"
+                          "Hola <span className='font-bold text-black'>[Nombre]</span>, hace tiempo que no nos vemos. ¿Te gustaría volver? Tenemos una oferta especial para renovar tu plan <span className='font-bold text-black'>[Plan]</span>. El total es <span className='font-bold text-black'>$[Total]</span>. Podes pagar desde este link: <br />🔗 <span className='font-bold text-blue-900 underline'>[Link Mercado Pago]</span> <br />¡Gracias!"
                         </div>
 
                         <button
                           onClick={async () => {
+                            if (!user) return;
                             try {
                               const result = await triggerReminders(user.id, 'lost');
                               toast.success('Campaña de Reconquista', {

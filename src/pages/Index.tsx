@@ -17,11 +17,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSe
 import { Client } from '@/types/client';
 import { Download, Search, Filter, ArrowUpDown, Activity, Clock, UserPlus } from 'lucide-react';
 import { fetchClients, triggerReminders, updateClient, deleteClient, createClient } from '@/lib/api';
-import { exportToExcel } from '@/lib/excel';
 
 const Index = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Obtener el usuario autenticado de Supabase Auth
+  // Eliminado: lógica de usuario/auth
+  const [loading, setLoading] = useState(false);
   const [activeView, setActiveView] = useState('dashboard');
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -52,27 +52,12 @@ const Index = () => {
   }, []);
 
   useEffect(() => {
-    // 1. Obtener sesión inicial
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    // 2. Escuchar cambios de auth
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (_event === 'SIGNED_IN') {
-        setActiveView('dashboard');
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    // Ya no necesitamos listeners de auth
   }, []);
 
   const loadClients = useCallback(async () => {
-    if (!user) return;
     try {
-      const data = await fetchClients(user.id);
+      const data = await fetchClients();
       setClients(data.map(c => ({
         ...c,
         id: c.id,
@@ -89,13 +74,11 @@ const Index = () => {
       console.error('Error loading clients:', err);
       toast.error('Error al cargar clientes');
     }
-  }, [user]);
+  }, []);
 
   useEffect(() => {
-    if (user) {
-      loadClients();
-    }
-  }, [loadClients, user]);
+    loadClients();
+  }, [loadClients]);
 
   const handleImport = async () => {
     await loadClients();
@@ -112,8 +95,8 @@ const Index = () => {
       if (clientToEdit) {
         await updateClient(clientToEdit.id, clientData);
         toast.success('Cliente actualizado correctamente');
-      } else if (user) {
-        await createClient(user.id, clientData);
+      } else {
+        await createClient(undefined, clientData);
         toast.success('Cliente creado correctamente');
       }
       loadClients();
@@ -162,10 +145,6 @@ const Index = () => {
 
   if (loading) return null;
 
-  if (!user) {
-    return <AuthPage onAuth={() => {}} />;
-  }
-
   return (
     <div className="min-h-screen bg-background">
       <AppSidebar
@@ -194,11 +173,9 @@ const Index = () => {
                   <>
                     <h2 className="text-4xl font-display font-extrabold tracking-tight">Panel de Control</h2>
                     <p className="text-muted-foreground font-medium mt-2">
-                      <span>
-                        {clients.length > 0
-                          ? `Gestionando ${clients.length} clientes en el sistema.`
-                          : 'Cargá tu base de datos para comenzar la automatización.'}
-                      </span>
+                      {clients.length > 0
+                        ? `Gestionando ${clients.length} clientes en el sistema.`
+                        : 'Cargá tu base de datos para comenzar la automatización.'}
                     </p>
                   </>
                 )}
@@ -208,25 +185,16 @@ const Index = () => {
                       <h2 className="text-4xl font-display font-extrabold tracking-tight">Gestión de Clientes</h2>
                       <p className="text-muted-foreground font-medium mt-2">Buscá, filtrá y organizá tu base de datos.</p>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => exportToExcel(clients)}
-                        className="px-6 h-12 rounded-2xl bg-white border border-border text-slate-800 font-bold text-sm uppercase tracking-widest shadow-sm hover:bg-slate-50 active:scale-95 transition-all flex items-center justify-center gap-3"
-                      >
-                        <Download size={18} />
-                        Exportar
-                      </button>
-                      <button
-                        onClick={() => {
-                          setClientToEdit(null);
-                          setIsDialogOpen(true);
-                        }}
-                        className="px-6 h-12 rounded-2xl bg-primary text-white font-bold text-sm uppercase tracking-widest shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-95 transition-all flex items-center justify-center gap-3"
-                      >
-                        <UserPlus size={18} />
-                        Nuevo Cliente
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => {
+                        setClientToEdit(null);
+                        setIsDialogOpen(true);
+                      }}
+                      className="px-6 h-12 rounded-2xl bg-primary text-white font-bold text-sm uppercase tracking-widest shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-95 transition-all flex items-center justify-center gap-3"
+                    >
+                      <UserPlus size={18} />
+                      Nuevo Cliente
+                    </button>
                   </div>
                 )}
                 {activeView === 'mensajes' && (
@@ -474,9 +442,8 @@ const Index = () => {
 
                           <button
                             onClick={async () => {
-                              if (!user) return;
                               try {
-                                const result = await triggerReminders(user.id, 'regular');
+                                const result = await triggerReminders(undefined, 'regular');
                                 toast.success('Campaña Ejecutada', {
                                   description: `Se han despachado ${result?.expiry_sent + result?.reminders_sent} mensajes.`,
                                 });
@@ -512,16 +479,15 @@ const Index = () => {
                               <p className="text-[11px] text-muted-foreground leading-relaxed">Notificá a los clientes que se les terminó el plan hace poco tiempo.</p>
                               <div className="pt-4">
                                 <div className="inline-block px-3 py-1 rounded-full bg-rose-100 text-rose-600 font-black text-[9px] uppercase tracking-tighter">
-                                  <span>{clients.filter(c => Number(c.dias) < 0 && Number(c.dias) >= -30).length}  --  Usuarios encontrados</span>
+                                  {clients.filter(c => Number(c.dias) < 0 && Number(c.dias) >= -30).length}  --  Usuarios encontrados
                                 </div>
                               </div>
                             </div>
 
                             <button
                               onClick={async () => {
-                                if (!user) return;
                                 try {
-                                  const result = await triggerReminders(user.id, 'expired');
+                                  const result = await triggerReminders(undefined, 'expired');
                                   toast.success('Cobranza Masiva Ejecutada', {
                                     description: `Se han notificado a ${result?.expired_sent || 0} deudores.`
                                   });
@@ -542,7 +508,7 @@ const Index = () => {
                     <TabsContent value="lost" className="space-y-8 outline-none animate-in-slide">
                       <div className="bg-white rounded-[2rem] border border-border/60 shadow-xl p-12 flex flex-col space-y-8 items-start">
                         <h4 className="text-lg font-black uppercase tracking-widest text-blue-900 mb-4">RECUPERACIÓN DE CLIENTES</h4>
-                        <p className="text-base text-slate-700 font-medium leading-relaxed mb-6"><span>Intentá recuperar clientes que no renuevan hace más de 30 días.<br/>Tu base de datos tiene <span className="font-black text-blue-900">{clients.filter(c => Number(c.dias) < -30).length} clientes</span> que no renueva su plan hace bastante.</span></p>
+                        <p className="text-base text-slate-700 font-medium leading-relaxed mb-6">Intentá recuperar clientes que no renuevan hace más de 30 días.<br/>Tu base de datos tiene <span className="font-black text-blue-900">{clients.filter(c => Number(c.dias) < -30).length} clientes</span> que no renueva su plan hace bastante.</p>
 
                         <div className="bg-slate-50 p-6 rounded-2xl border border-border/40 w-full text-slate-700 text-base font-medium">
                           "Hola <span className='font-bold text-black'>[Nombre]</span>, hace tiempo que no nos vemos. ¿Te gustaría volver? Tenemos una oferta especial para renovar tu plan <span className='font-bold text-black'>[Plan]</span>. El total es <span className='font-bold text-black'>$[Total]</span>. Podes pagar desde este link: <br />🔗 <span className='font-bold text-blue-900 underline'>[Link Mercado Pago]</span> <br />¡Gracias!"
@@ -550,9 +516,8 @@ const Index = () => {
 
                         <button
                           onClick={async () => {
-                            if (!user) return;
                             try {
-                              const result = await triggerReminders(user.id, 'lost');
+                              const result = await triggerReminders(undefined, 'lost');
                               toast.success('Campaña de Reconquista', {
                                 description: `Mensajes enviados a ${result?.lost_sent || 0} ex-clientes.`,
                               });
@@ -573,13 +538,13 @@ const Index = () => {
 
               {activeView === 'config' && (
                 <div className="animate-in-slide">
-                  <ConfigView userId={user.id} onDataUpdate={loadClients} />
+                  <ConfigView onDataUpdate={loadClients} />
                 </div>
               )}
 
               {activeView === 'upload' && (
                 <div className="max-w-2xl mx-auto pt-10 animate-in-slide">
-                  <ExcelUpload userId={user.id} onImport={handleImport} />
+                  <ExcelUpload onImport={handleImport} />
                 </div>
               )}
             </motion.div>

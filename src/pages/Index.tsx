@@ -553,7 +553,7 @@ const Index = () => {
 
               {activeView === 'config' && (
                 <div className="animate-in-slide">
-                  <ConfigView userId="dummy-user" onDataUpdate={loadClients} />
+                  <ConfigView userId={user.id} onDataUpdate={loadClients} />
                 </div>
               )}
 

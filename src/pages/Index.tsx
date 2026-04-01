@@ -86,8 +86,8 @@ const Index = () => {
   }, [user]);
 
   useEffect(() => {
-    loadClients();
-  }, [loadClients]);
+    if (user) loadClients();
+  }, [loadClients, user]);
 
   const handleImport = async () => {
     await loadClients();

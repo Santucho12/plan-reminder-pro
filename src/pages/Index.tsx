@@ -532,7 +532,7 @@ const Index = () => {
                         <button
                           onClick={async () => {
                             try {
-                              const result = await triggerReminders(undefined, 'lost');
+                              const result = await triggerReminders(user.id, 'lost');
                               toast.success('Campaña de Reconquista', {
                                 description: `Mensajes enviados a ${result?.lost_sent || 0} ex-clientes.`,
                               });

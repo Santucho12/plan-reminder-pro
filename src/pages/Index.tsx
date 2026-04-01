@@ -502,7 +502,7 @@ const Index = () => {
                             <button
                               onClick={async () => {
                                 try {
-                                  const result = await triggerReminders(undefined, 'expired');
+                                  const result = await triggerReminders(user.id, 'expired');
                                   toast.success('Cobranza Masiva Ejecutada', {
                                     description: `Se han notificado a ${result?.expired_sent || 0} deudores.`
                                   });

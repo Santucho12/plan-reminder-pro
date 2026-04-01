@@ -105,7 +105,7 @@ const Index = () => {
         await updateClient(clientToEdit.id, clientData);
         toast.success('Cliente actualizado correctamente');
       } else {
-        await createClient(undefined, clientData);
+        await createClient(user!.id, clientData);
         toast.success('Cliente creado correctamente');
       }
       loadClients();

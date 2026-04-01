@@ -152,6 +152,12 @@ const Index = () => {
       return 0;
     });
 
+  if (authLoading) return null;
+
+  if (!user) {
+    return <AuthPage onAuth={() => {}} />;
+  }
+
   if (loading) return null;
 
   return (

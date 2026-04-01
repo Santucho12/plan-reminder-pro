@@ -21,7 +21,7 @@ const ConfigView = ({ userId, onDataUpdate }: ConfigViewProps) => {
     try {
       const data = await fetchUserConfig(userId);
       setConfig(data);
-      if (data?.mp_access_token) setMpToken(data.mp_access_token);
+      if (data && (data as any).mp_access_token) setMpToken((data as any).mp_access_token);
     } catch (err) {
       console.error('Error loading config:', err);
       toast.error('Error al cargar configuración');
@@ -53,7 +53,7 @@ const ConfigView = ({ userId, onDataUpdate }: ConfigViewProps) => {
   const handleSaveMP = async () => {
     setSaving(true);
     try {
-      await updateUserConfig(userId, { mp_access_token: mpToken });
+      await updateUserConfig(userId, { mp_access_token: mpToken } as any);
       toast.success('Configuración de Mercado Pago guardada');
     } catch (err) {
       toast.error('Error al guardar configuración');
@@ -178,7 +178,7 @@ const ConfigView = ({ userId, onDataUpdate }: ConfigViewProps) => {
                 </div>
               </div>
 
-              {config?.mp_access_token ? (
+              {(config as any)?.mp_access_token ? (
                 <div className="px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-600 text-[10px] font-black uppercase tracking-widest">
                   Listo
                 </div>

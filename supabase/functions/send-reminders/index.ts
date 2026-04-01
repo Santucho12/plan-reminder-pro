@@ -77,14 +77,8 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Obtener config del usuario (token de MP)
-    const { data: userConfig } = await supabase
-      .from('user_configs')
-      .select('mp_access_token')
-      .eq('user_id', userId)
-      .single();
-
-    const mpToken = userConfig?.mp_access_token;
+    // Usar el token de MP desde las variables de entorno (secret)
+    const mpToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN') || null;
     const webhookUrl = `${supabaseUrl}/functions/v1/mercadopago-webhook`;
 
     console.log(`[DEBUG] userId: ${userId}`);

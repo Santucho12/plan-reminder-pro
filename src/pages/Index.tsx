@@ -57,7 +57,7 @@ const Index = () => {
 
   const loadClients = useCallback(async () => {
     try {
-      const data = await fetchClients();
+      const data = await fetchClients('dummy-user');
       setClients(data.map(c => ({
         ...c,
         id: c.id,
@@ -538,13 +538,13 @@ const Index = () => {
 
               {activeView === 'config' && (
                 <div className="animate-in-slide">
-                  <ConfigView onDataUpdate={loadClients} />
+                  <ConfigView userId="dummy-user" onDataUpdate={loadClients} />
                 </div>
               )}
 
               {activeView === 'upload' && (
                 <div className="max-w-2xl mx-auto pt-10 animate-in-slide">
-                  <ExcelUpload onImport={handleImport} />
+                  <ExcelUpload userId="dummy-user" onImport={handleImport} />
                 </div>
               )}
             </motion.div>

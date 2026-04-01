@@ -19,8 +19,8 @@ import { Download, Search, Filter, ArrowUpDown, Activity, Clock, UserPlus } from
 import { fetchClients, triggerReminders, updateClient, deleteClient, createClient } from '@/lib/api';
 
 const Index = () => {
-  // Obtener el usuario autenticado de Supabase Auth
-  // Eliminado: lógica de usuario/auth
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [activeView, setActiveView] = useState('dashboard');
   const [clients, setClients] = useState<Client[]>([]);
@@ -46,13 +46,22 @@ const Index = () => {
         description: 'El cliente ya fue actualizado en el sistema.',
         duration: 8000,
       });
-      // Limpiar URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
 
+  // Auth listener
   useEffect(() => {
-    // Ya no necesitamos listeners de auth
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const loadClients = useCallback(async () => {

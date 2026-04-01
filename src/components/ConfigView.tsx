@@ -53,7 +53,7 @@ const ConfigView = ({ userId, onDataUpdate }: ConfigViewProps) => {
   const handleSaveMP = async () => {
     setSaving(true);
     try {
-      await updateUserConfig(userId, { mp_access_token: mpToken });
+      await updateUserConfig(userId, { mp_access_token: mpToken } as any);
       toast.success('Configuración de Mercado Pago guardada');
     } catch (err) {
       toast.error('Error al guardar configuración');

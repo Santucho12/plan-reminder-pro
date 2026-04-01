@@ -21,7 +21,7 @@ const ConfigView = ({ userId, onDataUpdate }: ConfigViewProps) => {
     try {
       const data = await fetchUserConfig(userId);
       setConfig(data);
-      if (data?.mp_access_token) setMpToken(data.mp_access_token);
+      if (data && (data as any).mp_access_token) setMpToken((data as any).mp_access_token);
     } catch (err) {
       console.error('Error loading config:', err);
       toast.error('Error al cargar configuración');

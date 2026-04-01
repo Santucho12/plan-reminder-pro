@@ -57,7 +57,7 @@ const Index = () => {
 
   const loadClients = useCallback(async () => {
     try {
-      const data = await fetchClients();
+      const data = await fetchClients('dummy-user');
       setClients(data.map(c => ({
         ...c,
         id: c.id,

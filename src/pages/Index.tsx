@@ -19,8 +19,8 @@ import { Download, Search, Filter, ArrowUpDown, Activity, Clock, UserPlus } from
 import { fetchClients, triggerReminders, updateClient, deleteClient, createClient } from '@/lib/api';
 
 const Index = () => {
-  // Obtener el usuario autenticado de Supabase Auth
-  // Eliminado: lógica de usuario/auth
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [activeView, setActiveView] = useState('dashboard');
   const [clients, setClients] = useState<Client[]>([]);
@@ -46,18 +46,27 @@ const Index = () => {
         description: 'El cliente ya fue actualizado en el sistema.',
         duration: 8000,
       });
-      // Limpiar URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
 
+  // Auth listener
   useEffect(() => {
-    // Ya no necesitamos listeners de auth
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const loadClients = useCallback(async () => {
     try {
-      const data = await fetchClients('dummy-user');
+      const data = await fetchClients(user!.id);
       setClients(data.map(c => ({
         ...c,
         id: c.id,
@@ -74,11 +83,11 @@ const Index = () => {
       console.error('Error loading clients:', err);
       toast.error('Error al cargar clientes');
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
-    loadClients();
-  }, [loadClients]);
+    if (user) loadClients();
+  }, [loadClients, user]);
 
   const handleImport = async () => {
     await loadClients();
@@ -96,7 +105,7 @@ const Index = () => {
         await updateClient(clientToEdit.id, clientData);
         toast.success('Cliente actualizado correctamente');
       } else {
-        await createClient(undefined, clientData);
+        await createClient(user!.id, clientData);
         toast.success('Cliente creado correctamente');
       }
       loadClients();
@@ -142,6 +151,12 @@ const Index = () => {
       if (sortConfig === 'total-desc') return b.total - a.total;
       return 0;
     });
+
+  if (authLoading) return null;
+
+  if (!user) {
+    return <AuthPage onAuth={() => {}} />;
+  }
 
   if (loading) return null;
 
@@ -443,7 +458,7 @@ const Index = () => {
                           <button
                             onClick={async () => {
                               try {
-                                const result = await triggerReminders(undefined, 'regular');
+                                const result = await triggerReminders(user.id, 'regular');
                                 toast.success('Campaña Ejecutada', {
                                   description: `Se han despachado ${result?.expiry_sent + result?.reminders_sent} mensajes.`,
                                 });
@@ -487,7 +502,7 @@ const Index = () => {
                             <button
                               onClick={async () => {
                                 try {
-                                  const result = await triggerReminders(undefined, 'expired');
+                                  const result = await triggerReminders(user.id, 'expired');
                                   toast.success('Cobranza Masiva Ejecutada', {
                                     description: `Se han notificado a ${result?.expired_sent || 0} deudores.`
                                   });
@@ -517,7 +532,7 @@ const Index = () => {
                         <button
                           onClick={async () => {
                             try {
-                              const result = await triggerReminders(undefined, 'lost');
+                              const result = await triggerReminders(user.id, 'lost');
                               toast.success('Campaña de Reconquista', {
                                 description: `Mensajes enviados a ${result?.lost_sent || 0} ex-clientes.`,
                               });
@@ -538,13 +553,13 @@ const Index = () => {
 
               {activeView === 'config' && (
                 <div className="animate-in-slide">
-                  <ConfigView userId="dummy-user" onDataUpdate={loadClients} />
+                  <ConfigView userId={user.id} onDataUpdate={loadClients} />
                 </div>
               )}
 
               {activeView === 'upload' && (
                 <div className="max-w-2xl mx-auto pt-10 animate-in-slide">
-                  <ExcelUpload userId="dummy-user" onImport={handleImport} />
+                  <ExcelUpload userId={user.id} onImport={handleImport} />
                 </div>
               )}
             </motion.div>

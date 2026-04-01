@@ -15,6 +15,7 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const mpToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN');
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body = await req.json();
@@ -38,44 +39,30 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Buscamos todos los user_configs que tengan token configurado
-    const { data: configs } = await supabase
-      .from('user_configs')
-      .select('user_id, mp_access_token')
-      .not('mp_access_token', 'is', null);
-
-    let paymentInfo = null;
-    let matchedConfig = null;
-
-    // Intentar verificar el pago con cada token hasta encontrar uno que funcione
-    if (configs) {
-      for (const config of configs) {
-        const token = String(config.mp_access_token).trim();
-        try {
-          const res = await fetch(`${MP_BASE_URL}/v1/payments/${paymentId}`, {
-            headers: { 'Authorization': `Bearer ${token}` },
-          });
-
-          if (res.ok) {
-            paymentInfo = await res.json();
-            matchedConfig = config;
-            console.log(`Pago ${paymentId} verificado con token de usuario ${config.user_id}`);
-            break;
-          }
-        } catch (err) {
-          console.error(`Error verificando con token ${config.user_id}:`, err);
-          continue;
-        }
-      }
+    if (!mpToken) {
+      console.error('MERCADOPAGO_ACCESS_TOKEN no configurado');
+      return new Response(JSON.stringify({ error: 'MP token not configured' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    if (!paymentInfo) {
-      console.error(`No se pudo verificar el pago ${paymentId} con ningún token`);
+    // Verificar el pago con la API de Mercado Pago
+    const res = await fetch(`${MP_BASE_URL}/v1/payments/${paymentId}`, {
+      headers: { 'Authorization': `Bearer ${mpToken.trim()}` },
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`Error verificando pago ${paymentId}: ${res.status} - ${errText}`);
       return new Response(JSON.stringify({ error: 'Could not verify payment' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    const paymentInfo = await res.json();
+    console.log(`Pago ${paymentId} verificado. Estado: ${paymentInfo.status}, external_reference: ${paymentInfo.external_reference}`);
 
     // Verificar que el pago fue aprobado
     if (paymentInfo.status !== 'approved') {
@@ -111,25 +98,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    // LÓGICA DE VENCIMIENTO:
-    // Si la fecha actual de vencimiento es mayor a hoy, sumamos 1 mes a esa fecha.
-    // Si ya venció, sumamos 1 mes desde hoy.
-    const currentExpiry = client.vencimiento ? new Date(client.vencimiento) : new Date();
+    // Nueva fecha de vencimiento: 1 mes desde HOY
     const today = new Date();
-    
-    let baseDate = currentExpiry > today ? currentExpiry : today;
-    const newVencimiento = new Date(baseDate);
+    const newVencimiento = new Date(today);
     newVencimiento.setMonth(newVencimiento.getMonth() + 1);
-
     const newExpiryStr = newVencimiento.toISOString().split('T')[0];
 
-    // Actualizar cliente: estado PAGADO, nueva fecha de vencimiento
+    // Actualizar cliente: estado activo, nueva fecha de vencimiento
     const { error: updateErr } = await supabase
       .from('clients')
       .update({
-        estado: 'PAGADO',
+        estado: 'activo',
         vencimiento: newExpiryStr,
-        mercadopago_preference_id: null, // Limpiar preferencia usada
+        mercadopago_preference_id: null,
       })
       .eq('id', client.id);
 
@@ -146,7 +127,7 @@ Deno.serve(async (req) => {
       enviado: true,
     });
 
-    console.log(`✅ Pago ${paymentId} procesado exitosamente para ${client.nombre}`);
+    console.log(`✅ Pago ${paymentId} procesado exitosamente para ${client.nombre}. Nuevo vencimiento: ${newExpiryStr}`);
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -159,7 +140,7 @@ Deno.serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('❌ Error crítico en mercadopago-webhook:', errorMessage);
     return new Response(JSON.stringify({ success: false, error: errorMessage }), {
-      status: 200, // Devolvemos 200 para que MP deje de reintentar si es un error lógico nuestro
+      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

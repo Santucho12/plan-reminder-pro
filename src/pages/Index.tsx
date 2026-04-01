@@ -544,7 +544,7 @@ const Index = () => {
 
               {activeView === 'upload' && (
                 <div className="max-w-2xl mx-auto pt-10 animate-in-slide">
-                  <ExcelUpload onImport={handleImport} />
+                  <ExcelUpload userId="dummy-user" onImport={handleImport} />
                 </div>
               )}
             </motion.div>

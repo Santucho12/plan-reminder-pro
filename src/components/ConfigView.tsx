@@ -178,7 +178,7 @@ const ConfigView = ({ userId, onDataUpdate }: ConfigViewProps) => {
                 </div>
               </div>
 
-              {config?.mp_access_token ? (
+              {(config as any)?.mp_access_token ? (
                 <div className="px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-600 text-[10px] font-black uppercase tracking-widest">
                   Listo
                 </div>

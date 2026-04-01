@@ -458,7 +458,7 @@ const Index = () => {
                           <button
                             onClick={async () => {
                               try {
-                                const result = await triggerReminders(undefined, 'regular');
+                                const result = await triggerReminders(user.id, 'regular');
                                 toast.success('Campaña Ejecutada', {
                                   description: `Se han despachado ${result?.expiry_sent + result?.reminders_sent} mensajes.`,
                                 });

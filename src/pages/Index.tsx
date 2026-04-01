@@ -83,7 +83,7 @@ const Index = () => {
       console.error('Error loading clients:', err);
       toast.error('Error al cargar clientes');
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     loadClients();

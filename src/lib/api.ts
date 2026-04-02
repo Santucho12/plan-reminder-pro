@@ -167,6 +167,13 @@ export async function updateClient(clientId: string, updates: any) {
   if (finalUpdates.celular) {
     finalUpdates.celular = cleanPhone(finalUpdates.celular);
   }
+  // Normalize estado to DB-safe values (constraint: pagado, pendiente, vencido)
+  if (finalUpdates.estado) {
+    const upper = String(finalUpdates.estado).toUpperCase();
+    if (upper.includes('PAGADO')) finalUpdates.estado = 'pagado';
+    else if (upper.includes('VENCID') || upper === 'VENCE HOY') finalUpdates.estado = 'vencido';
+    else finalUpdates.estado = 'pendiente';
+  }
 
   const { data, error } = await supabase
     .from('clients')

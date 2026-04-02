@@ -26,7 +26,8 @@ async function createMPPreference(client: any, mpToken: string, webhookUrl: stri
       }
     ],
     payer: {
-      email: 'pago.servicios@gmail.com', // use a more generic neutral email if required
+      email: 'pago.cliente@gmail.com', // Probamos con un dominio más común
+      name: cleanName,
     },
     external_reference: client.id,
     back_urls: {
@@ -36,6 +37,7 @@ async function createMPPreference(client: any, mpToken: string, webhookUrl: stri
     },
     notification_url: webhookUrl,
     auto_return: 'approved',
+    statement_descriptor: 'FIESTACR', // Solo alfanumérico, corto
   };
 
   const res = await fetch(`${MP_BASE_URL}/checkout/preferences`, {
@@ -119,15 +121,17 @@ serve(async (req) => {
     const expiredClients = [];
     const lostClients = [];
 
-    // Calcular dias DINÁMICAMENTE desde la fecha de vencimiento
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Calcular dias DINÁMICAMENTE desde la fecha de vencimiento ajustando a Horario Argentina (UTC-3)
+    const nowUtc = new Date();
+    // Restar 3 horas para obtener la fecha correcta de Argentina en caso de que en UTC ya sea "mañana"
+    const today = new Date(nowUtc.getTime() - 3 * 60 * 60 * 1000);
+    today.setUTCHours(0, 0, 0, 0);
 
     for (const client of allClients || []) {
       if (!client.vencimiento) continue;
 
-      // Usamos el mismo método que el frontend para calcular la diferencia de días
-      const vencDate = new Date(`${client.vencimiento}T00:00:00`);
+      // Parseamos la fecha de vencimiento tratándola como UTC absoluto para que coincida a la perfección
+      const vencDate = new Date(`${client.vencimiento}T00:00:00Z`);
       const diffTime = vencDate.getTime() - today.getTime();
       const diasNum = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
@@ -156,7 +160,7 @@ serve(async (req) => {
       for (const client of regularReminders) {
         if (alreadySentSet.has(`${client.id}::recordatorio`)) { results.skipped++; continue; }
         if (sentPhones.has(client.celular)) { results.skipped++; continue; }
-
+        
         let linkPago = '';
         let mpErrorDetail = null;
         if (mpToken && Number(client.total) > 0) {
@@ -174,7 +178,7 @@ serve(async (req) => {
         const diasTexto = diasNum === 1 ? 'mañana' : `en ${diasNum} días`;
         const linkTexto = linkPago ? `\n\nPodes ir pagando desde acá para renovar:\n🔗 ${linkPago}` : '';
         const mensaje = `Hola ${client.nombre}, como estás? te recordamos que tu plan *${client.plan}* va a vencer ${diasTexto}. El total es *$${client.total}*.${linkTexto}\n\n¡Que tengas un buen día! 💪`;
-
+        
         await supabase.from('messages_log').insert({
           client_id: client.id, user_id: client.user_id, tipo: 'recordatorio', mensaje, enviado: false, error: mpErrorDetail,
         });
@@ -183,15 +187,15 @@ serve(async (req) => {
       }
 
       const debugTokens: any[] = [];
-
+      
       for (const client of regularExpirations) {
         if (alreadySentSet.has(`${client.id}::vencimiento`)) { results.skipped++; continue; }
         if (sentPhones.has(client.celular)) { results.skipped++; continue; }
-
+        
         let linkPago = '';
         let mpErrorDetail = null;
         let tryingMP = false;
-
+        
         if (mpToken && Number(client.total) > 0) {
           tryingMP = true;
           const cleanToken = mpToken.trim();
@@ -204,7 +208,7 @@ serve(async (req) => {
             results.errors.push(`MP Error para ${client.nombre}: ${mpErrorDetail}`);
           }
         }
-
+        
         debugTokens.push({
           cliente: client.nombre,
           total: client.total,
@@ -223,13 +227,13 @@ serve(async (req) => {
         results.expiry_sent++;
       }
 
-    }
+    } 
     // 2. Procesar Modo Expired (-1 a -30 días)
     else if (mode === 'expired') {
       for (const client of expiredClients) {
         if (alreadySentSet.has(`${client.id}::vencimiento`)) { results.skipped++; continue; }
         if (sentPhones.has(client.celular)) { results.skipped++; continue; }
-
+        
         let linkPago = '';
         let mpErrorDetail = null;
         if (mpToken && Number(client.total) > 0) {
@@ -256,7 +260,7 @@ serve(async (req) => {
       for (const client of lostClients) {
         if (alreadySentSet.has(`${client.id}::vencimiento`)) { results.skipped++; continue; }
         if (sentPhones.has(client.celular)) { results.skipped++; continue; }
-
+        
         let linkPago = '';
         let mpErrorDetail = null;
         if (mpToken && Number(client.total) > 0) {

@@ -40,9 +40,13 @@ const client = new Client({
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
             '--disable-extensions',
+            '--disable-web-security',
+            '--disable-features=IsolateOrigins,site-per-process'
         ]
+    },
+    webVersionCache: {
+        type: 'none'
     }
 });
 

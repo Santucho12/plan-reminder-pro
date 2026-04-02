@@ -1,3 +1,4 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -7,7 +8,7 @@ const corsHeaders = {
 
 const MP_BASE_URL = 'https://api.mercadopago.com';
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -15,21 +16,16 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const mpToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN');
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body = await req.json();
-    const url = new URL(req.url);
-    const userIdFromQuery = url.searchParams.get('user_id');
-
     console.log('Webhook MP Recibido:', JSON.stringify(body));
-
+    
     // MP puede enviar notificaciones de tipo 'payment' (Webhooks) o 'topic: payment' (IPN)
     const type = body.type || body.topic;
     const paymentId = body.data?.id || body.id;
 
     if (type !== 'payment') {
-      console.log(`Topic '${type}' ignorado. Solo procesamos 'payment'.`);
       return new Response(JSON.stringify({ received: true, skipped: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -82,9 +78,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    const paymentInfo = await res.json();
-    console.log(`Pago ${paymentId} verificado. Estado: ${paymentInfo.status}, external_reference: ${paymentInfo.external_reference}`);
-
     // Verificar que el pago fue aprobado
     if (paymentInfo.status !== 'approved') {
       console.log(`Pago ${paymentId} tiene estado: ${paymentInfo.status}. Ignorando.`);
@@ -119,19 +112,25 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Nueva fecha de vencimiento: 1 mes desde HOY
-    const today = new Date();
-    const newVencimiento = new Date(today);
+    // LÓGICA DE VENCIMIENTO: UTC-3 (Hora Argentina)
+    const currentExpiry = client.vencimiento ? new Date(`${client.vencimiento}T00:00:00Z`) : new Date();
+    const nowUtc = new Date();
+    const today = new Date(nowUtc.getTime() - 3 * 60 * 60 * 1000);
+    today.setUTCHours(0, 0, 0, 0); // Para poder comparar
+    
+    let baseDate = currentExpiry > today ? currentExpiry : today;
+    const newVencimiento = new Date(baseDate);
     newVencimiento.setMonth(newVencimiento.getMonth() + 1);
+
     const newExpiryStr = newVencimiento.toISOString().split('T')[0];
 
-    // Actualizar cliente: estado activo, nueva fecha de vencimiento
+    // Actualizar cliente: estado PAGADO, nueva fecha de vencimiento
     const { error: updateErr } = await supabase
       .from('clients')
       .update({
-        estado: 'activo',
+        estado: 'PAGADO',
         vencimiento: newExpiryStr,
-        mercadopago_preference_id: null,
+        mercadopago_preference_id: null, // Limpiar preferencia usada
       })
       .eq('id', client.id);
 
@@ -148,10 +147,10 @@ Deno.serve(async (req) => {
       enviado: true,
     });
 
-    console.log(`✅ Pago ${paymentId} procesado exitosamente para ${client.nombre}. Nuevo vencimiento: ${newExpiryStr}`);
+    console.log(`✅ Pago ${paymentId} procesado exitosamente para ${client.nombre}`);
 
-    return new Response(JSON.stringify({
-      success: true,
+    return new Response(JSON.stringify({ 
+      success: true, 
       client: client.nombre,
       new_vencimiento: newExpiryStr,
     }), {
@@ -161,7 +160,7 @@ Deno.serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('❌ Error crítico en mercadopago-webhook:', errorMessage);
     return new Response(JSON.stringify({ success: false, error: errorMessage }), {
-      status: 200,
+      status: 200, // Devolvemos 200 para que MP deje de reintentar si es un error lógico nuestro
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

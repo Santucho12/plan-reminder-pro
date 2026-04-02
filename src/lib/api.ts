@@ -190,7 +190,8 @@ export async function createClient(userId: string, clientData: any) {
     .insert({ 
       ...finalData, 
       id: crypto.randomUUID(),
-      user_id: userId,
+      user_id: userId, 
+      dias: finalData.dias || 0 
     })
     .select()
     .single();

@@ -19,13 +19,17 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body = await req.json();
+    const url = new URL(req.url);
+    const userIdFromQuery = url.searchParams.get('user_id');
+
     console.log('Webhook MP Recibido:', JSON.stringify(body));
-    
+
     // MP puede enviar notificaciones de tipo 'payment' (Webhooks) o 'topic: payment' (IPN)
     const type = body.type || body.topic;
     const paymentId = body.data?.id || body.id;
 
     if (type !== 'payment') {
+      console.log(`Topic '${type}' ignorado. Solo procesamos 'payment'.`);
       return new Response(JSON.stringify({ received: true, skipped: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -39,22 +43,39 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!mpToken) {
-      console.error('MERCADOPAGO_ACCESS_TOKEN no configurado');
-      return new Response(JSON.stringify({ error: 'MP token not configured' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // Buscamos todos los user_configs que tengan token configurado
+    const { data: configs } = await supabase
+      .from('user_configs')
+      .select('user_id, mp_access_token')
+      .not('mp_access_token', 'is', null);
+
+    let paymentInfo = null;
+    let matchedConfig = null;
+
+    // Intentar verificar el pago con cada token hasta encontrar uno que funcione
+    if (configs) {
+      for (const config of configs) {
+        const token = String(config.mp_access_token).trim();
+        try {
+          const res = await fetch(`${MP_BASE_URL}/v1/payments/${paymentId}`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+
+          if (res.ok) {
+            paymentInfo = await res.json();
+            matchedConfig = config;
+            console.log(`Pago ${paymentId} verificado con token de usuario ${config.user_id}`);
+            break;
+          }
+        } catch (err) {
+          console.error(`Error verificando con token ${config.user_id}:`, err);
+          continue;
+        }
+      }
     }
 
-    // Verificar el pago con la API de Mercado Pago
-    const res = await fetch(`${MP_BASE_URL}/v1/payments/${paymentId}`, {
-      headers: { 'Authorization': `Bearer ${mpToken.trim()}` },
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error(`Error verificando pago ${paymentId}: ${res.status} - ${errText}`);
+    if (!paymentInfo) {
+      console.error(`No se pudo verificar el pago ${paymentId} con ningún token`);
       return new Response(JSON.stringify({ error: 'Could not verify payment' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -129,8 +150,8 @@ Deno.serve(async (req) => {
 
     console.log(`✅ Pago ${paymentId} procesado exitosamente para ${client.nombre}. Nuevo vencimiento: ${newExpiryStr}`);
 
-    return new Response(JSON.stringify({ 
-      success: true, 
+    return new Response(JSON.stringify({
+      success: true,
       client: client.nombre,
       new_vencimiento: newExpiryStr,
     }), {

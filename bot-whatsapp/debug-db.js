@@ -5,7 +5,7 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const userId = '00000000-0000-0000-0000-000000000000';
+const userId = process.env.USER_ID;
 
 async function checkDebug() {
   console.log('--- CHECKING CONFIG ---');

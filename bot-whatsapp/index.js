@@ -41,16 +41,8 @@ const client = new Client({
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
-            '--disable-gpu',
-            '--no-first-run',
-            '--no-zygote',
-            '--single-process',
             '--disable-extensions',
         ]
-    },
-    webVersionCache: {
-        type: 'remote',
-        remotePath: 'https://raw.githubusercontent.com/nicaelacode/nicaela/master/nicaela/nicaela.json',
     }
 });
 

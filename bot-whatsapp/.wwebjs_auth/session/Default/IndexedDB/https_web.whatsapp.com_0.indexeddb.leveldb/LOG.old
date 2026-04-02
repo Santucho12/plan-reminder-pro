@@ -1,2 +1,50 @@
-2026/03/19-23:49:43.276 3f0c Reusing MANIFEST C:\Users\AMDRYZEN7\Desktop\Trabajos Freelance\CobrarWpp\plan-reminder-pro\bot-whatsapp\.wwebjs_auth\session\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
-2026/03/19-23:49:43.285 3f0c Recovering log #4850
+2026/04/02-00:42:50.984 6bec Creating DB C:\Users\AMDRYZEN7\Desktop\Trabajos Freelance\CobrarWpp\plan-reminder-pro\bot-whatsapp\.wwebjs_auth\session\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb since it was missing.
+2026/04/02-00:42:50.993 6bec Reusing MANIFEST C:\Users\AMDRYZEN7\Desktop\Trabajos Freelance\CobrarWpp\plan-reminder-pro\bot-whatsapp\.wwebjs_auth\session\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
+2026/04/02-00:43:39.621 6bec Level-0 table #5: started
+2026/04/02-00:43:39.650 6bec Level-0 table #5: 1012521 bytes OK
+2026/04/02-00:43:39.653 6bec Delete type=0 #3
+2026/04/02-00:43:40.637 6bec Level-0 table #7: started
+2026/04/02-00:43:40.670 6bec Level-0 table #7: 996489 bytes OK
+2026/04/02-00:43:40.673 6bec Delete type=0 #4
+2026/04/02-00:43:40.787 6bec Compacting 1@1 + 1@2 files
+2026/04/02-00:43:40.847 6bec Generated table #8@1: 25358 keys, 844253 bytes
+2026/04/02-00:43:40.848 6bec Compacted 1@1 + 1@2 files => 844253 bytes
+2026/04/02-00:43:40.849 6bec compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/04/02-00:43:40.849 6bec Delete type=2 #5
+2026/04/02-00:43:40.849 6bec Delete type=2 #7
+2026/04/02-00:43:41.528 b28 Level-0 table #10: started
+2026/04/02-00:43:41.558 b28 Level-0 table #10: 985590 bytes OK
+2026/04/02-00:43:41.561 b28 Delete type=0 #6
+2026/04/02-00:43:41.699 6bec Compacting 1@1 + 1@2 files
+2026/04/02-00:43:41.783 6bec Generated table #11@1: 33310 keys, 1221189 bytes
+2026/04/02-00:43:41.783 6bec Compacted 1@1 + 1@2 files => 1221189 bytes
+2026/04/02-00:43:41.784 6bec compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/04/02-00:43:42.004 1c2c Level-0 table #13: started
+2026/04/02-00:43:42.043 1c2c Level-0 table #13: 903027 bytes OK
+2026/04/02-00:43:42.047 1c2c Delete type=2 #8
+2026/04/02-00:43:42.047 1c2c Delete type=0 #9
+2026/04/02-00:43:42.047 1c2c Delete type=2 #10
+2026/04/02-00:43:42.152 6bec Compacting 1@1 + 1@2 files
+2026/04/02-00:43:42.225 6bec Generated table #14@1: 41165 keys, 1751884 bytes
+2026/04/02-00:43:42.226 6bec Compacted 1@1 + 1@2 files => 1751884 bytes
+2026/04/02-00:43:42.226 6bec compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/04/02-00:43:42.226 6bec Delete type=2 #11
+2026/04/02-00:43:42.227 6bec Delete type=2 #13
+2026/04/02-00:43:53.499 6bec Level-0 table #16: started
+2026/04/02-00:43:53.533 6bec Level-0 table #16: 1285868 bytes OK
+2026/04/02-00:43:53.536 6bec Delete type=0 #12
+2026/04/02-00:43:53.539 6bec Compacting 1@1 + 1@2 files
+2026/04/02-00:43:53.621 6bec Generated table #17@1: 40212 keys, 2203257 bytes
+2026/04/02-00:43:53.641 6bec Generated table #18@1: 11825 keys, 588192 bytes
+2026/04/02-00:43:53.642 6bec Compacted 1@1 + 1@2 files => 2791449 bytes
+2026/04/02-00:43:53.642 6bec compacted to: files[ 0 0 2 0 0 0 0 ]
+2026/04/02-00:43:53.643 6bec Delete type=2 #14
+2026/04/02-00:43:53.643 6bec Delete type=2 #16
+2026/04/02-00:43:54.106 b28 Level-0 table #20: started
+2026/04/02-00:43:54.134 b28 Level-0 table #20: 1281629 bytes OK
+2026/04/02-00:43:54.135 b28 Delete type=0 #15
+2026/04/02-00:43:54.137 b28 Compacting 1@1 + 2@2 files
+2026/04/02-00:43:54.240 b28 Generated table #21@1: 52811 keys, 2216794 bytes
+2026/04/02-00:43:54.280 b28 Generated table #22@1: 16760 keys, 1472804 bytes
+2026/04/02-00:43:54.280 b28 Compacted 1@1 + 2@2 files => 3689598 bytes
+2026/04/02-00:43:54.280 b28 compacted to: files[ 0 0 2 0 0 0 0 ]

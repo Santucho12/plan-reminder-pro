@@ -100,6 +100,7 @@ export async function insertClientsFromExcel(
       vencimiento,
       total: parseFloat(String(row[mapping.total] || '0').replace(/[^0-9.,]/g, '').replace(',', '.')) || 0,
       estado,
+      dias: Number(row[mapping.dias]) || 0,
     };
   });
 

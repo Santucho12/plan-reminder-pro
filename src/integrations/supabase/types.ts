@@ -19,6 +19,7 @@ export type Database = {
           apellido: string | null
           celular: string
           created_at: string
+          dias: number | null
           estado: string
           id: string
           mercadopago_preference_id: string | null
@@ -34,6 +35,7 @@ export type Database = {
           apellido?: string | null
           celular: string
           created_at?: string
+          dias?: number | null
           estado?: string
           id?: string
           mercadopago_preference_id?: string | null
@@ -49,6 +51,7 @@ export type Database = {
           apellido?: string | null
           celular?: string
           created_at?: string
+          dias?: number | null
           estado?: string
           id?: string
           mercadopago_preference_id?: string | null

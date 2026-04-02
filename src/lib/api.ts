@@ -100,6 +100,7 @@ export async function insertClientsFromExcel(
       vencimiento,
       total: parseFloat(String(row[mapping.total] || '0').replace(/[^0-9.,]/g, '').replace(',', '.')) || 0,
       estado,
+      dias: Number(row[mapping.dias]) || 0,
     };
   });
 
@@ -189,7 +190,8 @@ export async function createClient(userId: string, clientData: any) {
     .insert({ 
       ...finalData, 
       id: crypto.randomUUID(),
-      user_id: userId,
+      user_id: userId, 
+      dias: finalData.dias || 0 
     })
     .select()
     .single();

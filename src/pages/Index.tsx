@@ -19,25 +19,35 @@ import { Download, Search, Filter, ArrowUpDown, Activity, Clock, UserPlus } from
 import { fetchClients, triggerReminders, updateClient, deleteClient, createClient } from '@/lib/api';
 
 const Index = () => {
-  // Obtener el usuario autenticado de Supabase Auth
-  // Eliminado: lógica de usuario/auth
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [activeView, setActiveView] = useState('dashboard');
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
-  // Estados para búsqueda y filtrado
   const [searchTerm, setSearchTerm] = useState('');
   const [platformFilter, setPlatformFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortConfig, setSortConfig] = useState<'total-asc' | 'total-desc'>('total-desc');
 
-  // Dialogo de cliente
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [clientToEdit, setClientToEdit] = useState<Client | null>(null);
 
   useEffect(() => {
-    // Escuchar cambios en el estado de Mercado Pago (éxito)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const status = urlParams.get('status') || urlParams.get('collection_status');
 
@@ -46,25 +56,21 @@ const Index = () => {
         description: 'El cliente ya fue actualizado en el sistema.',
         duration: 8000,
       });
-      // Limpiar URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
 
-  useEffect(() => {
-    // Ya no necesitamos listeners de auth
-  }, []);
-
   const loadClients = useCallback(async () => {
+    if (!user) return;
     try {
-      const data = await fetchClients('dummy-user');
+      const data = await fetchClients(user.id);
       setClients(data.map(c => ({
         ...c,
         id: c.id,
         nombre: c.nombre,
         celular: c.celular,
         plan: c.plan || '',
-        vencimiento: c.vencimiento, // Ya es Date por la API
+        vencimiento: c.vencimiento,
         total: Number(c.total),
         estado: c.estado as Client['estado'],
         ultimoMensaje: c.ultimo_mensaje ? new Date(c.ultimo_mensaje) : undefined,
@@ -74,11 +80,23 @@ const Index = () => {
       console.error('Error loading clients:', err);
       toast.error('Error al cargar clientes');
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     loadClients();
   }, [loadClients]);
+
+  // Realtime listener
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel('clients-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'clients', filter: `user_id=eq.${user.id}` }, () => {
+        loadClients();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user, loadClients]);
 
   const handleImport = async () => {
     await loadClients();
@@ -91,12 +109,13 @@ const Index = () => {
   };
 
   const handleSaveClient = async (clientData: any) => {
+    if (!user) return;
     try {
       if (clientToEdit) {
         await updateClient(clientToEdit.id, clientData);
         toast.success('Cliente actualizado correctamente');
       } else {
-        await createClient(undefined, clientData);
+        await createClient(user.id, clientData);
         toast.success('Cliente creado correctamente');
       }
       loadClients();
@@ -119,14 +138,12 @@ const Index = () => {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    setUser(null);
     setClients([]);
   };
 
   const [wppStatus, setWppStatus] = useState<string>('disconnected');
 
-  // Eliminado: lógica de user_configs y canales dependientes de user.id
-
-  // Lógica de filtrado y ordenamiento
   const platforms = Array.from(new Set(clients.map(c => c.plan).filter(Boolean)));
   const statuses = Array.from(new Set(clients.map(c => c.estado).filter(Boolean)));
 
@@ -143,7 +160,8 @@ const Index = () => {
       return 0;
     });
 
-  if (loading) return null;
+  if (authLoading) return null;
+  if (!user) return <AuthPage onAuth={() => {}} />;
 
   return (
     <div className="min-h-screen bg-background">
@@ -155,7 +173,6 @@ const Index = () => {
       />
 
       <main className="ml-[260px] p-10 min-h-screen relative overflow-hidden">
-        {/* Decorative background gradients */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-[100px] -z-10" />
         <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-emerald-500/5 rounded-full translate-y-1/2 -translate-x-1/2 blur-[80px] -z-10" />
 
@@ -442,8 +459,9 @@ const Index = () => {
 
                           <button
                             onClick={async () => {
+                              if (!user) return;
                               try {
-                                const result = await triggerReminders(undefined, 'regular');
+                                const result = await triggerReminders(user.id, 'regular');
                                 toast.success('Campaña Ejecutada', {
                                   description: `Se han despachado ${result?.expiry_sent + result?.reminders_sent} mensajes.`,
                                 });
@@ -474,7 +492,6 @@ const Index = () => {
                         <div className="lg:col-span-1">
                           <div className="bg-white rounded-[2rem] border border-border shadow-lg p-8 h-full flex flex-col justify-between">
                             <div className="space-y-4">
-                              {/* Eliminado: Recuperación de Cartera */}
                               <h5 className="text-lg font-bold leading-snug">Reactivando planes</h5>
                               <p className="text-[11px] text-muted-foreground leading-relaxed">Notificá a los clientes que se les terminó el plan hace poco tiempo.</p>
                               <div className="pt-4">
@@ -486,8 +503,9 @@ const Index = () => {
 
                             <button
                               onClick={async () => {
+                                if (!user) return;
                                 try {
-                                  const result = await triggerReminders(undefined, 'expired');
+                                  const result = await triggerReminders(user.id, 'expired');
                                   toast.success('Cobranza Masiva Ejecutada', {
                                     description: `Se han notificado a ${result?.expired_sent || 0} deudores.`
                                   });
@@ -516,8 +534,9 @@ const Index = () => {
 
                         <button
                           onClick={async () => {
+                            if (!user) return;
                             try {
-                              const result = await triggerReminders(undefined, 'lost');
+                              const result = await triggerReminders(user.id, 'lost');
                               toast.success('Campaña de Reconquista', {
                                 description: `Mensajes enviados a ${result?.lost_sent || 0} ex-clientes.`,
                               });
@@ -538,13 +557,13 @@ const Index = () => {
 
               {activeView === 'config' && (
                 <div className="animate-in-slide">
-                  <ConfigView userId="dummy-user" onDataUpdate={loadClients} />
+                  <ConfigView userId={user.id} onDataUpdate={loadClients} />
                 </div>
               )}
 
               {activeView === 'upload' && (
                 <div className="max-w-2xl mx-auto pt-10 animate-in-slide">
-                  <ExcelUpload userId="dummy-user" onImport={handleImport} />
+                  <ExcelUpload userId={user.id} onImport={handleImport} />
                 </div>
               )}
             </motion.div>

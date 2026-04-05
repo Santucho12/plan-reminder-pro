@@ -109,30 +109,39 @@ export type Database = {
       user_configs: {
         Row: {
           id: string
+          mp_access_token: string | null
           msg_recordatorio: string
           msg_recuperacion: string
           msg_vencidos: string
           msg_vencimiento_hoy: string
           updated_at: string
           user_id: string
+          wpp_qr_code: string | null
+          wpp_status: string | null
         }
         Insert: {
           id?: string
+          mp_access_token?: string | null
           msg_recordatorio?: string
           msg_recuperacion?: string
           msg_vencidos?: string
           msg_vencimiento_hoy?: string
           updated_at?: string
           user_id: string
+          wpp_qr_code?: string | null
+          wpp_status?: string | null
         }
         Update: {
           id?: string
+          mp_access_token?: string | null
           msg_recordatorio?: string
           msg_recuperacion?: string
           msg_vencidos?: string
           msg_vencimiento_hoy?: string
           updated_at?: string
           user_id?: string
+          wpp_qr_code?: string | null
+          wpp_status?: string | null
         }
         Relationships: []
       }

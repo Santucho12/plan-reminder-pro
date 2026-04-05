@@ -144,6 +144,28 @@ const Index = () => {
 
   const [wppStatus, setWppStatus] = useState<string>('disconnected');
 
+  // Load wpp_status from user_configs and subscribe to realtime changes
+  useEffect(() => {
+    if (!user) return;
+    const loadWppStatus = async () => {
+      const { data } = await supabase
+        .from('user_configs')
+        .select('wpp_status')
+        .eq('user_id', user.id)
+        .single();
+      if (data?.wpp_status) setWppStatus(data.wpp_status);
+    };
+    loadWppStatus();
+
+    const channel = supabase
+      .channel('wpp-status-changes')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'user_configs', filter: `user_id=eq.${user.id}` }, (payload) => {
+        if (payload.new?.wpp_status) setWppStatus(payload.new.wpp_status as string);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
+
   const platforms = Array.from(new Set(clients.map(c => c.plan).filter(Boolean)));
   const statuses = Array.from(new Set(clients.map(c => c.estado).filter(Boolean)));
 

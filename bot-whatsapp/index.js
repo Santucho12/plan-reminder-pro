@@ -199,6 +199,29 @@ async function startPolling() {
     }, 20000); 
 }
 
+// Graceful shutdown: actualizar estado a disconnected al cerrar el proceso
+async function gracefulShutdown(signal) {
+    console.log(`\n${signal} recibido. Cerrando bot...`);
+    try {
+        await supabase
+            .from('user_configs')
+            .update({ wpp_status: 'disconnected' })
+            .eq('user_id', userId);
+        console.log('Estado actualizado a DISCONNECTED en Supabase.');
+    } catch (err) {
+        console.error('Error al actualizar estado en shutdown:', err.message);
+    }
+    try { await client.destroy(); } catch (_) {}
+    process.exit(0);
+}
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('uncaughtException', async (err) => {
+    console.error('Excepción no capturada:', err.message);
+    await gracefulShutdown('uncaughtException');
+});
+
 async function initializeWithRetry(maxRetries = 3) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {

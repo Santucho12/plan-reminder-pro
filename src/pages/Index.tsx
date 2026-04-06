@@ -144,26 +144,57 @@ const Index = () => {
 
   const [wppStatus, setWppStatus] = useState<string>('disconnected');
 
-  // Load wpp_status from user_configs and subscribe to realtime changes
+  // Load wpp_status from user_configs with heartbeat check and subscribe to realtime changes
   useEffect(() => {
     if (!user) return;
-    const loadWppStatus = async () => {
+
+    const checkStatus = async () => {
       const { data } = await supabase
         .from('user_configs')
-        .select('wpp_status')
+        .select('wpp_status, wpp_last_heartbeat')
         .eq('user_id', user.id)
         .single();
-      if (data?.wpp_status) setWppStatus(data.wpp_status);
+      
+      if (!data) return;
+      
+      // If status says connected but heartbeat is stale (>90s), mark as disconnected
+      if (data.wpp_status === 'connected' && data.wpp_last_heartbeat) {
+        const lastBeat = new Date(data.wpp_last_heartbeat).getTime();
+        const now = Date.now();
+        if (now - lastBeat > 90000) {
+          setWppStatus('disconnected');
+          return;
+        }
+      }
+      
+      setWppStatus(data.wpp_status || 'disconnected');
     };
-    loadWppStatus();
+    
+    checkStatus();
+    // Re-check heartbeat every 30 seconds
+    const interval = setInterval(checkStatus, 30000);
 
     const channel = supabase
       .channel('wpp-status-changes')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'user_configs', filter: `user_id=eq.${user.id}` }, (payload) => {
-        if (payload.new?.wpp_status) setWppStatus(payload.new.wpp_status as string);
+        const newStatus = (payload.new as any)?.wpp_status;
+        const heartbeat = (payload.new as any)?.wpp_last_heartbeat;
+        
+        if (newStatus === 'connected' && heartbeat) {
+          const lastBeat = new Date(heartbeat).getTime();
+          if (Date.now() - lastBeat > 90000) {
+            setWppStatus('disconnected');
+            return;
+          }
+        }
+        
+        if (newStatus) setWppStatus(newStatus);
       })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => { 
+      clearInterval(interval);
+      supabase.removeChannel(channel); 
+    };
   }, [user]);
 
   const platforms = Array.from(new Set(clients.map(c => c.plan).filter(Boolean)));

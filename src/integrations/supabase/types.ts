@@ -116,6 +116,7 @@ export type Database = {
           msg_vencimiento_hoy: string
           updated_at: string
           user_id: string
+          wpp_last_heartbeat: string | null
           wpp_qr_code: string | null
           wpp_status: string | null
         }
@@ -128,6 +129,7 @@ export type Database = {
           msg_vencimiento_hoy?: string
           updated_at?: string
           user_id: string
+          wpp_last_heartbeat?: string | null
           wpp_qr_code?: string | null
           wpp_status?: string | null
         }
@@ -140,6 +142,7 @@ export type Database = {
           msg_vencimiento_hoy?: string
           updated_at?: string
           user_id?: string
+          wpp_last_heartbeat?: string | null
           wpp_qr_code?: string | null
           wpp_status?: string | null
         }

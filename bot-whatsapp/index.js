@@ -91,7 +91,8 @@ client.on('ready', async () => {
         .from('user_configs')
         .update({ 
             wpp_status: 'connected',
-            wpp_qr_code: null
+            wpp_qr_code: null,
+            wpp_last_heartbeat: new Date().toISOString()
         })
         .eq('user_id', userId);
 
@@ -100,6 +101,15 @@ client.on('ready', async () => {
     } else {
         console.log('Estado actualizado a CONNECTED en Supabase.');
     }
+
+    // Heartbeat cada 30 segundos para que la UI sepa que el bot sigue vivo
+    setInterval(async () => {
+        const { error: hbError } = await supabase
+            .from('user_configs')
+            .update({ wpp_last_heartbeat: new Date().toISOString() })
+            .eq('user_id', userId);
+        if (hbError) console.error('Error en heartbeat:', hbError.message);
+    }, 30000);
 
     console.log('Iniciando ciclo de procesamiento de mensajes...');
     startPolling();

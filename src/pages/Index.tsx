@@ -588,6 +588,7 @@ const Index = () => {
                         </div>
 
                         <button
+                          disabled={wppStatus !== 'connected'}
                           onClick={async () => {
                             if (!user) return;
                             try {
@@ -600,9 +601,9 @@ const Index = () => {
                               toast.error('Error al iniciar campaña');
                             }
                           }}
-                          className="w-full h-14 rounded-2xl bg-blue-900 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:shadow-[0_0_25px_rgba(30,58,138,0.4)] transition-all active:scale-95 mt-6"
+                          className="w-full h-14 rounded-2xl bg-blue-900 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:shadow-[0_0_25px_rgba(30,58,138,0.4)] transition-all active:scale-95 mt-6 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:active:scale-100"
                         >
-                          Iniciar automatización
+                          {wppStatus !== 'connected' ? 'Bot Desconectado' : 'Iniciar automatización'}
                         </button>
                       </div>
                     </TabsContent>

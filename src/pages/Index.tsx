@@ -556,6 +556,7 @@ const Index = () => {
                             </div>
 
                             <button
+                              disabled={wppStatus !== 'connected'}
                               onClick={async () => {
                                 if (!user) return;
                                 try {
@@ -568,9 +569,9 @@ const Index = () => {
                                   toast.error('Error al ejecutar proceso');
                                 }
                               }}
-                              className="w-full h-14 rounded-2xl bg-rose-600 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-rose-700 transition-all shadow-xl shadow-rose-100"
+                              className="w-full h-14 rounded-2xl bg-rose-600 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-rose-700 transition-all shadow-xl shadow-rose-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-rose-600 disabled:active:scale-100"
                             >
-                              Iniciar automatización
+                              {wppStatus !== 'connected' ? 'Bot Desconectado' : 'Iniciar automatización'}
                             </button>
                           </div>
                         </div>

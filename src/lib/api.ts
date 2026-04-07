@@ -1,6 +1,8 @@
 import { supabase } from '@/integrations/supabase/client';
-import { ColumnMapping } from '@/types/client';
-import { differenceInDays, startOfDay, addDays } from 'date-fns';
+import { Client, ColumnMapping } from '@/types/client';
+import { differenceInDays, startOfDay, addDays, format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import * as XLSX from 'xlsx';
 
 export const cleanPhone = (phone: any) => {
   if (!phone) return null;

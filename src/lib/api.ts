@@ -129,8 +129,8 @@ export async function fetchClients(userId: string) {
     let estadoActual = client.estado;
     const upper = String(client.estado).toUpperCase();
     
-    // Solo sobreescribir si no es un estado final (Pagado)
-    if (!upper.includes('PAGADO')) {
+    // Solo sobreescribir si no es un estado final (Activo)
+    if (!upper.includes('ACTIVO')) {
       if (diff === 0) estadoActual = 'Vence hoy';
       else if (diff > 0 && diff <= 3) estadoActual = 'Por vencer';
       else if (diff < 0) estadoActual = 'Vencido';
@@ -167,10 +167,10 @@ export async function updateClient(clientId: string, updates: any) {
   if (finalUpdates.celular) {
     finalUpdates.celular = cleanPhone(finalUpdates.celular);
   }
-  // Normalize estado to DB-safe values (constraint: pagado, pendiente, vencido)
+  // Normalize estado to DB-safe values (constraint: activo, pendiente, vencido)
   if (finalUpdates.estado) {
     const upper = String(finalUpdates.estado).toUpperCase();
-    if (upper.includes('PAGADO')) finalUpdates.estado = 'pagado';
+    if (upper.includes('ACTIVO') || upper.includes('PAGADO')) finalUpdates.estado = 'activo';
     else if (upper.includes('VENCID') || upper === 'VENCE HOY') finalUpdates.estado = 'vencido';
     else finalUpdates.estado = 'pendiente';
   }

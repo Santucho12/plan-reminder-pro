@@ -124,11 +124,11 @@ serve(async (req) => {
 
     const newExpiryStr = newVencimiento.toISOString().split('T')[0];
 
-    // Actualizar cliente: estado PAGADO, nueva fecha de vencimiento
+    // Actualizar cliente: estado activo, nueva fecha de vencimiento
     const { error: updateErr } = await supabase
       .from('clients')
       .update({
-        estado: 'PAGADO',
+        estado: 'activo',
         vencimiento: newExpiryStr,
         mercadopago_preference_id: null, // Limpiar preferencia usada
       })

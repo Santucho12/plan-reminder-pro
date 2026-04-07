@@ -97,8 +97,7 @@ serve(async (req) => {
       .from('clients')
       .select('*')
       .eq('user_id', userId)
-      .neq('estado', 'PAGADO')
-      .neq('estado', 'pagado');
+      .neq('estado', 'activo');
 
     if (fetchErr) throw fetchErr;
 

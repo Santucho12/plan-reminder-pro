@@ -104,7 +104,7 @@ export function mapRowsToClients(
 
     let estado: Client['estado'] = 'pendiente';
     if (diffDays < 0) estado = 'vencido';
-    else if (diffDays > 3) estado = 'pagado';
+    else if (diffDays > 3) estado = 'activo';
 
     return {
       id: `client-${index}-${Date.now()}`,

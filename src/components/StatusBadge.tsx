@@ -26,7 +26,7 @@ const StatusBadge = ({ status }: StatusBadgeProps) => {
       className: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
       icon: Clock
     };
-  } else if (upperStatus.includes('ACTIVO') || upperStatus.includes('PAGADO')) {
+  } else if (upperStatus.includes('ACTIVO')) {
     styles = {
       className: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
       icon: CheckCircle2

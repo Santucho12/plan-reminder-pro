@@ -1,6 +1,8 @@
 import { supabase } from '@/integrations/supabase/client';
-import { ColumnMapping } from '@/types/client';
-import { differenceInDays, startOfDay, addDays } from 'date-fns';
+import { Client, ColumnMapping } from '@/types/client';
+import { differenceInDays, startOfDay, addDays, format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import * as XLSX from 'xlsx';
 
 export const cleanPhone = (phone: any) => {
   if (!phone) return null;
@@ -239,4 +241,37 @@ export async function updateUserConfig(userId: string, updates: any) {
   
   if (error) throw error;
   return data;
+}
+
+export function exportClientsToExcel(clients: Client[]) {
+  const data = clients.map((c, i) => ({
+    '#': i + 1,
+    'Nombre': c.nombre,
+    'Apellido': c.apellido || '',
+    'Celular': c.celular,
+    'Plan': c.plan,
+    'Vencimiento': c.vencimiento instanceof Date ? format(c.vencimiento, 'dd/MM/yyyy', { locale: es }) : String(c.vencimiento),
+    'Días': c.dias ?? '',
+    'Total': c.total,
+    'Estado': String(c.estado).toUpperCase(),
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(data);
+
+  // Column widths
+  ws['!cols'] = [
+    { wch: 5 },  // #
+    { wch: 20 }, // Nombre
+    { wch: 15 }, // Apellido
+    { wch: 18 }, // Celular
+    { wch: 20 }, // Plan
+    { wch: 14 }, // Vencimiento
+    { wch: 8 },  // Días
+    { wch: 12 }, // Total
+    { wch: 14 }, // Estado
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Clientes');
+  XLSX.writeFile(wb, `clientes_${format(new Date(), 'dd-MM-yyyy')}.xlsx`);
 }

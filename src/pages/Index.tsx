@@ -15,8 +15,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "@/components/ui/select";
 import { Client } from '@/types/client';
-import { Download, Search, Filter, ArrowUpDown, Activity, Clock, UserPlus } from 'lucide-react';
-import { fetchClients, triggerReminders, updateClient, deleteClient, createClient } from '@/lib/api';
+import { Download, Search, Filter, ArrowUpDown, Activity, Clock, UserPlus, FileSpreadsheet } from 'lucide-react';
+import { fetchClients, triggerReminders, updateClient, deleteClient, createClient, exportClientsToExcel } from '@/lib/api';
 
 const Index = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -255,16 +255,25 @@ const Index = () => {
                       <h2 className="text-4xl font-display font-extrabold tracking-tight">Gestión de Clientes</h2>
                       <p className="text-muted-foreground font-medium mt-2">Buscá, filtrá y organizá tu base de datos.</p>
                     </div>
-                    <button
-                      onClick={() => {
-                        setClientToEdit(null);
-                        setIsDialogOpen(true);
-                      }}
-                      className="px-6 h-12 rounded-2xl bg-primary text-white font-bold text-sm uppercase tracking-widest shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-95 transition-all flex items-center justify-center gap-3"
-                    >
-                      <UserPlus size={18} />
-                      Nuevo Cliente
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => exportClientsToExcel(clients)}
+                        className="px-6 h-12 rounded-2xl bg-emerald-600 text-white font-bold text-sm uppercase tracking-widest shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/30 active:scale-95 transition-all flex items-center justify-center gap-3"
+                      >
+                        <FileSpreadsheet size={18} />
+                        Exportar Excel
+                      </button>
+                      <button
+                        onClick={() => {
+                          setClientToEdit(null);
+                          setIsDialogOpen(true);
+                        }}
+                        className="px-6 h-12 rounded-2xl bg-primary text-white font-bold text-sm uppercase tracking-widest shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-95 transition-all flex items-center justify-center gap-3"
+                      >
+                        <UserPlus size={18} />
+                        Nuevo Cliente
+                      </button>
+                    </div>
                   </div>
                 )}
                 {activeView === 'mensajes' && (

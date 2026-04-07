@@ -244,32 +244,88 @@ export async function updateUserConfig(userId: string, updates: any) {
 }
 
 export function exportClientsToExcel(clients: Client[]) {
-  const data = clients.map((c, i) => ({
-    '#': i + 1,
-    'Nombre': c.nombre,
-    'Apellido': c.apellido || '',
-    'Celular': c.celular,
-    'Plan': c.plan,
-    'Vencimiento': c.vencimiento instanceof Date ? format(c.vencimiento, 'dd/MM/yyyy', { locale: es }) : String(c.vencimiento),
-    'Días': c.dias ?? '',
-    'Total': c.total,
-    'Estado': String(c.estado).toUpperCase(),
-  }));
+  const headers = ['Nombre', 'Celular', 'Plan', 'Vencimiento', 'Total', 'Estado', 'Días'];
+  const rows = clients.map(c => [
+    c.nombre,
+    c.celular,
+    c.plan,
+    c.vencimiento instanceof Date ? format(c.vencimiento, 'd/M/yyyy', { locale: es }) : String(c.vencimiento),
+    c.total,
+    String(c.estado).charAt(0).toUpperCase() + String(c.estado).slice(1),
+    c.dias ?? '',
+  ]);
 
-  const ws = XLSX.utils.json_to_sheet(data);
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
 
-  // Column widths
+  const headerStyle = {
+    font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11, name: 'Calibri' },
+    fill: { fgColor: { rgb: '2F5496' } },
+    alignment: { horizontal: 'center' as const, vertical: 'center' as const },
+    border: {
+      bottom: { style: 'thin' as const, color: { rgb: '1F3864' } },
+    },
+  };
+
+  const cellStyle = {
+    font: { sz: 10, name: 'Calibri' },
+    alignment: { horizontal: 'center' as const, vertical: 'center' as const },
+    border: {
+      bottom: { style: 'thin' as const, color: { rgb: 'D9E2F3' } },
+    },
+  };
+
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+
+  // Style headers
+  for (let c = range.s.c; c <= range.e.c; c++) {
+    const addr = XLSX.utils.encode_cell({ r: 0, c });
+    if (ws[addr]) ws[addr].s = headerStyle;
+  }
+
+  // Style data rows with alternating colors
+  for (let r = 1; r <= range.e.r; r++) {
+    const isEven = r % 2 === 0;
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const addr = XLSX.utils.encode_cell({ r, c });
+      if (!ws[addr]) continue;
+      const estadoCol = 5; // Estado column index
+      let fill = isEven ? { fgColor: { rgb: 'D9E2F3' } } : { fgColor: { rgb: 'FFFFFF' } };
+      let fontColor = { rgb: '000000' };
+
+      if (c === estadoCol) {
+        const val = String(ws[addr].v || '').toUpperCase();
+        if (val.includes('ACTIVO')) {
+          fill = { fgColor: { rgb: 'C6EFCE' } };
+          fontColor = { rgb: '006100' };
+        } else if (val.includes('VENCIDO')) {
+          fill = { fgColor: { rgb: 'FFC7CE' } };
+          fontColor = { rgb: '9C0006' };
+        } else if (val.includes('PENDIENTE')) {
+          fill = { fgColor: { rgb: 'FFEB9C' } };
+          fontColor = { rgb: '9C6500' };
+        }
+      }
+
+      ws[addr].s = {
+        ...cellStyle,
+        fill,
+        font: { ...cellStyle.font, color: { rgb: fontColor.rgb } },
+      };
+    }
+  }
+
   ws['!cols'] = [
-    { wch: 5 },  // #
-    { wch: 20 }, // Nombre
-    { wch: 15 }, // Apellido
-    { wch: 18 }, // Celular
-    { wch: 20 }, // Plan
+    { wch: 25 }, // Nombre
+    { wch: 16 }, // Celular
+    { wch: 28 }, // Plan
     { wch: 14 }, // Vencimiento
+    { wch: 10 }, // Total
+    { wch: 12 }, // Estado
     { wch: 8 },  // Días
-    { wch: 12 }, // Total
-    { wch: 14 }, // Estado
   ];
+
+  // Row heights
+  ws['!rows'] = [{ hpt: 28 }];
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Clientes');

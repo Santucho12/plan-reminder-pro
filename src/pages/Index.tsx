@@ -15,8 +15,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "@/components/ui/select";
 import { Client } from '@/types/client';
-import { Download, Search, Filter, ArrowUpDown, Activity, Clock, UserPlus } from 'lucide-react';
-import { fetchClients, triggerReminders, updateClient, deleteClient, createClient } from '@/lib/api';
+import { Download, Search, Filter, ArrowUpDown, Activity, Clock, UserPlus, FileSpreadsheet } from 'lucide-react';
+import { fetchClients, triggerReminders, updateClient, deleteClient, createClient, exportClientsToExcel } from '@/lib/api';
 
 const Index = () => {
   const [user, setUser] = useState<User | null>(null);

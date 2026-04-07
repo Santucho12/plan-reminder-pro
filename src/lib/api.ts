@@ -133,7 +133,40 @@ export async function fetchClients(userId: string) {
     if (!upper.includes('ACTIVO')) {
       if (diff === 0) estadoActual = 'Vence hoy';
       else if (diff > 0 && diff <= 3) estadoActual = 'Por vencer';
-...
+      else if (diff < 0) estadoActual = 'Vencido';
+      else if (diff > 3) estadoActual = 'Activo';
+    }
+
+    return {
+      ...client,
+      vencimiento: vDate,
+      dias: diff.toString(),
+      estado: estadoActual
+    };
+  });
+}
+
+export async function fetchMessagesLog(userId: string) {
+  const { data, error } = await supabase
+    .from('messages_log')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteClient(clientId: string) {
+  const { error } = await supabase.from('clients').delete().eq('id', clientId);
+  if (error) throw error;
+}
+
+export async function updateClient(clientId: string, updates: any) {
+  const finalUpdates = { ...updates };
+  if (finalUpdates.celular) {
+    finalUpdates.celular = cleanPhone(finalUpdates.celular);
+  }
   // Normalize estado to DB-safe values (constraint: activo, pendiente, vencido)
   if (finalUpdates.estado) {
     const upper = String(finalUpdates.estado).toUpperCase();

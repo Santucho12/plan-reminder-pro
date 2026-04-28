@@ -1,3 +1,9 @@
-2026/04/05-00:35:07.336 6e0c Reusing MANIFEST C:\Users\AMDRYZEN7\Desktop\Trabajos Freelance\CobrarWpp\plan-reminder-pro\bot-whatsapp\.wwebjs_auth\session\Default\Local Storage\leveldb/MANIFEST-000001
-2026/04/05-00:35:07.343 6e0c Recovering log #4
-2026/04/05-00:35:07.346 6e0c Reusing old log C:\Users\AMDRYZEN7\Desktop\Trabajos Freelance\CobrarWpp\plan-reminder-pro\bot-whatsapp\.wwebjs_auth\session\Default\Local Storage\leveldb/000004.log 
+2026/04/08-12:53:20.111 4d08 Reusing MANIFEST C:\Users\AMDRYZEN7\Desktop\Trabajos Freelance\Sistema CobrarWpp\plan-reminder-pro\bot-whatsapp\.wwebjs_auth\session\Default\Local Storage\leveldb/MANIFEST-000001
+2026/04/08-12:53:20.117 4d08 Recovering log #7
+2026/04/08-12:53:20.121 4d08 Reusing old log C:\Users\AMDRYZEN7\Desktop\Trabajos Freelance\Sistema CobrarWpp\plan-reminder-pro\bot-whatsapp\.wwebjs_auth\session\Default\Local Storage\leveldb/000007.log 
+2026/04/08-12:56:20.728 4f70 Level-0 table #11: started
+2026/04/08-12:56:20.735 4f70 Level-0 table #11: 23272 bytes OK
+2026/04/08-12:56:20.738 4f70 Delete type=0 #7
+2026/04/08-17:31:25.905 4f70 Level-0 table #13: started
+2026/04/08-17:31:25.911 4f70 Level-0 table #13: 17076 bytes OK
+2026/04/08-17:31:25.912 4f70 Delete type=0 #10

@@ -74,7 +74,9 @@ const Index = () => {
         total: Number(c.total),
         estado: c.estado as Client['estado'],
         ultimoMensaje: c.ultimo_mensaje ? new Date(c.ultimo_mensaje) : undefined,
-        dias: c.dias
+        dias: c.dias,
+        nota_plataforma: c.nota_plataforma,
+        nota_precio: c.nota_precio
       })));
     } catch (err) {
       console.error('Error loading clients:', err);

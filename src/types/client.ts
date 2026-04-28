@@ -9,6 +9,8 @@ export interface Client {
   estado: string;
   ultimoMensaje?: Date;
   dias?: number;
+  nota_plataforma?: string;
+  nota_precio?: string;
 }
 
 export type ColumnMapping = {

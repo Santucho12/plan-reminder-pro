@@ -17,7 +17,9 @@ const ClientDialog = ({ client, onClose, onSave }: ClientDialogProps) => {
     plan: '',
     vencimiento: format(new Date(), 'yyyy-MM-dd'),
     total: 0,
-    estado: 'activo'
+    estado: 'activo',
+    nota_plataforma: '',
+    nota_precio: ''
   });
   const [loading, setLoading] = useState(false);
 
@@ -29,7 +31,9 @@ const ClientDialog = ({ client, onClose, onSave }: ClientDialogProps) => {
         plan: client.plan,
         vencimiento: format(client.vencimiento, 'yyyy-MM-dd'),
         total: client.total,
-        estado: client.estado
+        estado: client.estado,
+        nota_plataforma: client.nota_plataforma || '',
+        nota_precio: client.nota_precio || ''
       });
     }
   }, [client]);
@@ -151,6 +155,32 @@ const ClientDialog = ({ client, onClose, onSave }: ClientDialogProps) => {
                     placeholder="0"
                   />
                 </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                  <Tag size={12} className="text-primary" /> Nota Plataforma (Opcional)
+                </label>
+                <textarea
+                  value={formData.nota_plataforma}
+                  onChange={(e) => setFormData({ ...formData, nota_plataforma: e.target.value })}
+                  className="w-full min-h-[80px] rounded-xl bg-secondary/30 border-none p-4 text-sm font-semibold focus:ring-2 focus:ring-primary/20 transition-all resize-none"
+                  placeholder="Notas sobre la plataforma..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                  <CreditCard size={12} className="text-primary" /> Nota Precio (Opcional)
+                </label>
+                <textarea
+                  value={formData.nota_precio}
+                  onChange={(e) => setFormData({ ...formData, nota_precio: e.target.value })}
+                  className="w-full min-h-[80px] rounded-xl bg-secondary/30 border-none p-4 text-sm font-semibold focus:ring-2 focus:ring-primary/20 transition-all resize-none"
+                  placeholder="Notas sobre el precio..."
+                />
               </div>
             </div>
 

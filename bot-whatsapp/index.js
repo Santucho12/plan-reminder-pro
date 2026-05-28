@@ -66,6 +66,19 @@ if (!userId) {
 console.log(`Supabase: ${supabaseUrl}`);
 console.log(`USER_ID bot: ${userId}`);
 
+async function setBotPresence(status, extra = {}) {
+    const { error } = await supabase
+        .from('user_configs')
+        .update({ wpp_status: status, ...extra })
+        .eq('user_id', userId);
+    if (error) {
+        console.error(`No se pudo actualizar wpp_status=${status}:`, error.message);
+    }
+}
+
+// Al iniciar, no dejar "connected" viejo en la web si el bot todavía no está listo
+setBotPresence('connecting', { wpp_last_heartbeat: null }).catch(() => {});
+
 const client = new Client({
     authStrategy: new LocalAuth(),
     authTimeoutMs: 120000,
@@ -82,8 +95,10 @@ client.on('auth_failure', msg => {
     console.error('Error de autenticación:', msg);
 });
 
-client.on('authenticated', () => {
+client.on('authenticated', async () => {
     console.log('--- AUTENTICACIÓN EXITOSA ---');
+    console.log('Esperando evento READY (ahí recién queda listo para enviar)...');
+    await setBotPresence('connecting');
 });
 
 let qrUploaded = false;
@@ -145,14 +160,20 @@ client.on('ready', async () => {
         console.log('Estado actualizado a CONNECTED en Supabase.');
     }
 
-    // Heartbeat cada 30 segundos para que la UI sepa que el bot sigue vivo
-    setInterval(async () => {
+    const sendHeartbeat = async () => {
         const { error: hbError } = await supabase
             .from('user_configs')
-            .update({ wpp_last_heartbeat: new Date().toISOString() })
+            .update({
+                wpp_status: 'connected',
+                wpp_last_heartbeat: new Date().toISOString(),
+            })
             .eq('user_id', userId);
         if (hbError) console.error('Error en heartbeat:', hbError.message);
-    }, 30000);
+    };
+
+    await sendHeartbeat();
+    // Heartbeat cada 20s para que la web detecte conexión real
+    setInterval(sendHeartbeat, 20000);
 
     console.log('Iniciando ciclo de procesamiento de mensajes...');
     startPolling();

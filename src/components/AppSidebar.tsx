@@ -82,6 +82,11 @@ const AppSidebar = ({ activeView, onViewChange, wppStatus, hasClients }: AppSide
                   <span className="absolute animate-ping w-full h-full rounded-full bg-emerald-400 opacity-75"></span>
                   <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50" />
                 </>
+              ) : wppStatus === 'connecting' ? (
+                <>
+                  <span className="absolute animate-ping w-full h-full rounded-full bg-amber-400 opacity-75"></span>
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-lg shadow-amber-500/50" />
+                </>
               ) : (
                 <div className="w-2.5 h-2.5 rounded-full bg-slate-300" />
               )}
@@ -89,7 +94,11 @@ const AppSidebar = ({ activeView, onViewChange, wppStatus, hasClients }: AppSide
             <div className="flex-1">
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5 leading-none">WhatsApp</p>
               <p className="text-xs font-semibold leading-none">
-                {wppStatus === 'connected' ? 'Conectado' : 'Desconectado'}
+                {wppStatus === 'connected'
+                  ? 'Conectado'
+                  : wppStatus === 'connecting'
+                    ? 'Conectando...'
+                    : 'Desconectado'}
               </p>
             </div>
             <Settings size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />

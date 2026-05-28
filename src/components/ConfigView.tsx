@@ -5,6 +5,7 @@ import ExcelUpload from './ExcelUpload';
 import { Loader2, CheckCircle2, XCircle, QrCode, CreditCard, Save, Settings, FileSpreadsheet, Database } from 'lucide-react';
 import { fetchUserConfig, updateUserConfig } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
+import { getEffectiveWppStatus } from '@/lib/wppStatus';
 
 interface ConfigViewProps {
   userId: string;
@@ -70,6 +71,11 @@ const ConfigView = ({ userId, onDataUpdate }: ConfigViewProps) => {
     );
   }
 
+  const effectiveStatus = getEffectiveWppStatus(
+    config?.wpp_status,
+    config?.wpp_last_heartbeat,
+  );
+
   return (
     <div className="w-full pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-10">
 
@@ -95,10 +101,15 @@ const ConfigView = ({ userId, onDataUpdate }: ConfigViewProps) => {
               </div>
 
               <div className="flex flex-col items-end gap-1">
-                {config?.wpp_status === 'connected' ? (
+                {effectiveStatus === 'connected' ? (
                   <div className="px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     Online
+                  </div>
+                ) : effectiveStatus === 'connecting' ? (
+                  <div className="px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-600 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                    Conectando
                   </div>
                 ) : (
                   <div className="px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-border text-slate-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
@@ -110,7 +121,7 @@ const ConfigView = ({ userId, onDataUpdate }: ConfigViewProps) => {
             </div>
 
             <div className="flex-1 p-8 flex flex-col items-center justify-center text-center">
-              {config?.wpp_status === 'connected' ? (
+              {effectiveStatus === 'connected' ? (
                 <div className="space-y-6 animate-in fade-in zoom-in duration-500">
                   <div className="w-24 h-24 rounded-full bg-emerald-500/5 flex items-center justify-center mx-auto border border-emerald-500/10 relative">
                     <div className="absolute inset-0 bg-emerald-500/10 blur-2xl rounded-full animate-pulse" />
@@ -124,7 +135,19 @@ const ConfigView = ({ userId, onDataUpdate }: ConfigViewProps) => {
                   </div>
             
                 </div>
-              ) : config?.wpp_status === 'pending_qr' && config?.wpp_qr_code ? (
+              ) : effectiveStatus === 'connecting' ? (
+                <div className="space-y-6 animate-in fade-in duration-500">
+                  <div className="w-24 h-24 rounded-full bg-amber-500/5 flex items-center justify-center mx-auto border border-amber-500/10">
+                    <Loader2 size={48} className="text-amber-500 animate-spin" />
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="text-xl font-bold text-slate-800 dark:text-white">Conectando WhatsApp</h4>
+                    <p className="text-sm text-muted-foreground max-w-[260px] mx-auto leading-relaxed">
+                      La terminal puede mostrar autenticación exitosa antes de quedar listo. Esperá a ver &quot;Evento READY&quot; en la consola.
+                    </p>
+                  </div>
+                </div>
+              ) : effectiveStatus === 'pending_qr' && config?.wpp_qr_code ? (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500 w-full">
                   <div className="relative inline-block p-4 bg-white rounded-3xl shadow-2xl border border-emerald-100">
                     <QRCodeSVG value={config.wpp_qr_code} size={180} />

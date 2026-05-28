@@ -4,12 +4,27 @@ const qrcode = require('qrcode-terminal');
 const http = require('http');
 const { createClient } = require('@supabase/supabase-js');
 
+if (process.env.ALLOW_INSECURE_TLS === 'true') {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    console.warn('⚠️ TLS verification disabled (ALLOW_INSECURE_TLS=true). Use only for local troubleshooting.');
+}
+
 // Health Check Server for Deployment
 const PORT = process.env.PORT || 3000;
-http.createServer((req, res) => {
+const healthServer = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end('Bot is running\n');
-}).listen(PORT, () => {
+});
+
+healthServer.on('error', (err) => {
+    if (err && err.code === 'EADDRINUSE') {
+        console.warn(`Puerto ${PORT} ocupado: se omite health-check, el bot continúa.`);
+        return;
+    }
+    console.error('Error en health-check server:', err.message || String(err));
+});
+
+healthServer.listen(PORT, () => {
     console.log(`Salud check server corriendo en puerto ${PORT}`);
 });
 
@@ -23,6 +38,8 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
+const DEFAULT_PAYMENT_ALIAS = 'Santi.abenel';
+const DEFAULT_PAYMENT_CBU = '0000003100092533873855';
 
 // ID del usuario que este bot va a manejar
 const userId = process.env.USER_ID;
@@ -132,6 +149,107 @@ client.on('error', (err) => {
     // Intentar no re-iniciar si es algo no crítico, o avisar en Supabase.
 });
 
+async function safeUpdate(id, data, retries = 3) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            const { error } = await supabase.from('messages_log').update(data).eq('id', id);
+            if (!error) return true;
+            console.error(`Error en safeUpdate (intento ${i+1}):`, error.message);
+        } catch (err) {
+            console.error(`Excepción en safeUpdate (intento ${i+1}):`, err.message);
+        }
+        await new Promise(res => setTimeout(res, 2000));
+    }
+    return false;
+}
+
+function buildTransferInfo(aliasFromConfig) {
+    const alias = (aliasFromConfig || DEFAULT_PAYMENT_ALIAS || '').trim();
+    const cbu = (DEFAULT_PAYMENT_CBU || '').trim();
+    return `\n\nPodés abonar por transferencia:\n• *Alias:* ${alias}\n• *CBU:* ${cbu}`;
+}
+
+function buildAutomationMessageByDays(dias, total, aliasFromConfig) {
+    const alias = (aliasFromConfig || DEFAULT_PAYMENT_ALIAS || '').trim();
+    const cbu = (DEFAULT_PAYMENT_CBU || '').trim();
+    const totalText = Number(total || 0).toLocaleString('es-AR');
+
+    if (dias === 0) {
+        return `Hola Quería recordarte que hoy vence tu suscripción ⚠️
+¿Vas a querer renovar? 
+
+Debe abonar hoy! 💰 ${totalText}
+
+cbu : ${cbu}
+y alias : ${alias}`;
+    }
+
+    if (dias > 0) {
+        return `Hola Quería recordarte que en 3 dias vence tu suscripción ⚠️
+¿Vas a querer renovar? 
+
+Debe abonar 💰 ${totalText}
+
+cbu : ${cbu}
+y alias : ${alias}`;
+    }
+
+    if (dias >= -30) {
+        return `Hola 
+Tú suscripción ya está vencida ⚠️
+
+Vimos que aún no abonaste tu servicio, vas a querer renovar o procedemos con la baja? ❌
+
+Muchas gracias!`;
+    }
+
+    return `Hola 
+Notamos que no renovas tu servicio hace un tiempo⚠️
+
+Te gustaria retomar con alguno de nuestros servicios?`;
+}
+
+function buildAutomationMessage(msgType, originalMessage, dias, total, aliasFromConfig) {
+    // 1) Prioridad por tipo explícito de cola
+    if (msgType === 'recordatorio') {
+        return buildAutomationMessageByDays(3, total, aliasFromConfig);
+    }
+
+    // 2) Prioridad por contenido original (evita errores por dias desactualizado en DB)
+    const msgLower = String(originalMessage || '').toLowerCase();
+
+    if (
+        msgLower.includes('hoy vence tu suscripción') ||
+        msgLower.includes('venció hoy') ||
+        msgLower.includes('debe abonar hoy')
+    ) {
+        return buildAutomationMessageByDays(0, total, aliasFromConfig);
+    }
+
+    if (
+        msgLower.includes('en 3 dias vence tu suscripción') ||
+        msgLower.includes('en 3 dias  vence tu suscripción')
+    ) {
+        return buildAutomationMessageByDays(3, total, aliasFromConfig);
+    }
+
+    if (
+        msgLower.includes('ya está vencida') ||
+        msgLower.includes('procedemos con la baja')
+    ) {
+        return buildAutomationMessageByDays(-5, total, aliasFromConfig);
+    }
+
+    if (
+        msgLower.includes('no renovas tu servicio hace un tiempo') ||
+        msgLower.includes('te gustaria retomar con alguno de nuestros servicios')
+    ) {
+        return buildAutomationMessageByDays(-31, total, aliasFromConfig);
+    }
+
+    // 3) Fallback por días actuales
+    return buildAutomationMessageByDays(dias, total, aliasFromConfig);
+}
 async function startPolling() {
     // Polling cada 20 segundos (para cumplir con la meta de 3 mensajes por minuto)
     setInterval(async () => {
@@ -140,12 +258,28 @@ async function startPolling() {
             // Los links de MP ya vienen incluidos en el mensaje desde send-reminders
             const { data: messages, error } = await supabase
                 .from('messages_log')
+<<<<<<< HEAD
                 .select('*, clients(celular)')
+=======
+                .select('*, clients(celular, dias, total)')
+>>>>>>> 2094d7f (fix message automation templates and bot routing)
                 .eq('user_id', userId)
                 .eq('enviado', false)
                 .order('created_at', { ascending: true })
                 .limit(1); 
 
+<<<<<<< HEAD
+=======
+            // Buscamos el alias actual del usuario para inyectarlo si no está
+            const { data: config } = await supabase
+                .from('user_configs')
+                .select('payment_alias')
+                .eq('user_id', userId)
+                .single();
+            
+            const currentAlias = config?.payment_alias || DEFAULT_PAYMENT_ALIAS;
+
+>>>>>>> 2094d7f (fix message automation templates and bot routing)
             if (error) throw error;
 
             for (const msg of messages) {
@@ -165,6 +299,36 @@ async function startPolling() {
 
                 const formattedPhone = phone.includes('@c.us') ? phone : `${phone}@c.us`;
 
+<<<<<<< HEAD
+=======
+                // --- PLAN B: FORZAR TEMPLATE FINAL POR DÍAS ---
+                const clientDaysNow = Number(msg.clients?.dias);
+                const clientTotalNow = Number(msg.clients?.total || 0);
+                let finalMessage = buildAutomationMessage(
+                    msg.tipo,
+                    msg.mensaje,
+                    clientDaysNow,
+                    clientTotalNow,
+                    currentAlias
+                );
+                
+                // 1. Eliminar cualquier rastro de link de Mercado Pago
+                finalMessage = finalMessage.replace(/Podés pagar desde este link:[\s\S]*?https:\/\/www\.mercadopago\.com\.ar\/checkout\/v1\/redirect\?pref_id=[^\s]*/g, '');
+                finalMessage = finalMessage.replace(/O mediante este link \(con recargo\):[\s\S]*?https:\/\/www\.mercadopago\.com\.ar\/checkout\/v1\/redirect\?pref_id=[^\s]*/g, '');
+                finalMessage = finalMessage.replace(/https:\/\/www\.mercadopago\.com\.ar\/checkout\/v1\/redirect\?pref_id=[^\s]*/g, '');
+                
+                // 2. Si faltan alias o CBU, agregar bloque de transferencia
+                const shouldContainTransferData = finalMessage.includes('Debe abonar');
+                const missingAlias = currentAlias && !finalMessage.includes(currentAlias);
+                const missingCbu = !finalMessage.includes(DEFAULT_PAYMENT_CBU);
+                if (shouldContainTransferData && (missingAlias || missingCbu)) {
+                    finalMessage += buildTransferInfo(currentAlias);
+                }
+
+                // Limpiar saltos de línea triples que puedan quedar
+                finalMessage = finalMessage.replace(/\n\n\n+/g, '\n\n').trim();
+
+>>>>>>> 2094d7f (fix message automation templates and bot routing)
                 try {
                     console.log(`Enviando mensaje a ${formattedPhone}...`);
                     console.log(`Contenido: "${msg.mensaje.substring(0, 50)}..."`);

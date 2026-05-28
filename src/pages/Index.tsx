@@ -485,8 +485,8 @@ const Index = () => {
                             <h4 className="text-[13px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
                               <div className="w-2 h-2 rounded-full bg-primary" />Proximo a vencer (3 días)
                             </h4>
-                            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 border border-border/40 font-medium leading-relaxed italic text-slate-700 dark:text-slate-300">
-                              "Hola <span className="text-slate-900 dark:text-white font-bold">[Nombre]</span>, ¿cómo estás? Te recordamos que tu plan <span className="text-slate-900 dark:text-white font-bold">[Plan]</span> va a vencer en 3 días. El total es <span className="text-slate-900 dark:text-white font-bold">$[Total]</span>. ¡Que tengas un buen día! 💪"
+                            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 border border-border/40 font-medium leading-relaxed italic text-slate-700 dark:text-slate-300 whitespace-pre-line">
+                              {"Hola Quería recordarte que en 3 dias  vence tu suscripción ⚠️\n¿Vas a querer renovar? \n\nDebe abonar 💰[Total]\n\ncbu : 0000003100092533873855\ny alias : Santi.abenel"}
                             </div>
                           </div>
 
@@ -494,8 +494,8 @@ const Index = () => {
                             <h4 className="text-[13px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
                               <div className="w-2 h-2 rounded-full bg-primary" />Vencen hoy
                             </h4>
-                            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 border border-border/40 font-medium leading-relaxed italic text-slate-700 dark:text-slate-300">
-                              "Hola <span className="text-slate-900 dark:text-white font-bold">[Nombre]</span>, tu plan <span className="text-slate-900 dark:text-white font-bold">[Plan]</span> venció hoy. El total es <span className="text-slate-900 dark:text-white font-bold">$[Total]</span>. Podes pagar desde este link: <br />🔗 <span className="text-slate-900 dark:text-white font-bold underline">[Link Mercado Pago]</span> <br />¡Gracias!"
+                            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 border border-border/40 font-medium leading-relaxed italic text-slate-700 dark:text-slate-300 whitespace-pre-line">
+                              {"Hola Quería recordarte que hoy vence tu suscripción ⚠️\n¿Vas a querer renovar? \n\nDebe abonar hoy! 💰[Total]\n\ncbu : 0000003100092533873855\ny alias : Santi.abenel"}
                             </div>
                           </div>
                         </div>
@@ -549,8 +549,8 @@ const Index = () => {
                           <h4 className="text-[13px] font-black uppercase tracking-[0.2em] text-rose-500 flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-rose-500" /> Clientes vencidos (1-30 días)
                           </h4>
-                          <div className="bg-rose-50/30 rounded-2xl p-8 border border-rose-500/10 font-medium leading-relaxed italic text-rose-950 border-l-rose-500 border-l-4 shadow-inner">
-                            "Hola <span className="text-rose-600 font-bold">[Nombre]</span>, notamos que tu plan <span className="text-rose-600 font-bold">[Plan]</span> ya se encuentra vencido. El total para renovarlo es <span className="text-rose-600 font-bold">$[Total]</span>. Te mando el link de pago para reactivar tu servicio: <br />🔗 <span className="text-rose-600 font-bold underline">[Link Mercado Pago]</span>"
+                          <div className="bg-rose-50/30 rounded-2xl p-8 border border-rose-500/10 font-medium leading-relaxed italic text-rose-950 border-l-rose-500 border-l-4 shadow-inner whitespace-pre-line">
+                            {"Hola \nTú suscripción ya está vencida ⚠️\n\nVimos que aún no abonaste tu servicio, vas a querer renovar o procedemos con la baja? ❌\n\nMuchas gracias!"}
                           </div>
                         </div>
 
@@ -594,8 +594,8 @@ const Index = () => {
                         <h4 className="text-lg font-black uppercase tracking-widest text-blue-900 mb-4">RECUPERACIÓN DE CLIENTES</h4>
                         <p className="text-base text-slate-700 font-medium leading-relaxed mb-6">Intentá recuperar clientes que no renuevan hace más de 30 días.<br/>Tu base de datos tiene <span className="font-black text-blue-900">{clients.filter(c => Number(c.dias) < -30).length} clientes</span> que no renueva su plan hace bastante.</p>
 
-                        <div className="bg-slate-50 p-6 rounded-2xl border border-border/40 w-full text-slate-700 text-base font-medium">
-                          "Hola <span className='font-bold text-black'>[Nombre]</span>, hace tiempo que no nos vemos. ¿Te gustaría volver? Tenemos una oferta especial para renovar tu plan <span className='font-bold text-black'>[Plan]</span>. El total es <span className='font-bold text-black'>$[Total]</span>. Podes pagar desde este link: <br />🔗 <span className='font-bold text-blue-900 underline'>[Link Mercado Pago]</span> <br />¡Gracias!"
+                        <div className="bg-slate-50 p-6 rounded-2xl border border-border/40 w-full text-slate-700 text-base font-medium whitespace-pre-line">
+                          {"Hola \nNotamos que no renovas tu servicio hace un tiempo⚠️\n\nTe gustaria retomar con alguno de nuestros servicios?"}
                         </div>
 
                         <button

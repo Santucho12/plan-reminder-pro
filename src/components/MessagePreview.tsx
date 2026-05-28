@@ -1,8 +1,6 @@
 import { motion } from 'framer-motion';
 import { MessageSquare, X } from 'lucide-react';
 import { Client } from '@/types/client';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 
 interface MessagePreviewProps {
   client: Client | null;
@@ -12,17 +10,38 @@ interface MessagePreviewProps {
 const MessagePreview = ({ client, onClose }: MessagePreviewProps) => {
   if (!client) return null;
 
-  const daysText = client.estado === 'vencido'
-    ? 'se venció'
-    : client.estado === 'pendiente'
-      ? 'está por vencer'
-      : 'está al día';
+  const alias = 'Santi.abenel';
+  const cbu = '0000003100092533873855';
+  const total = client.total.toLocaleString('es-AR');
+  const dias = Number(client.dias);
 
-  const message = Number(client.dias) === 0
-    ? `Hola ${client.nombre}, tu plan *${client.plan}* vence hoy. El total es *$${client.total.toLocaleString('es-AR')}*.\n\n¡Que tengas un gran dia!`
-    : Number(client.dias) < 0
-      ? `Hola ${client.nombre}, te informamos que tu plan *${client.plan}* venció el ${format(client.vencimiento, "dd 'de' MMMM", { locale: es })}. El total es *$${client.total.toLocaleString('es-AR')}*.\n\nPodés pagar desde este link:\n🔗 (se genera al enviar recordatorios automáticos)\n\n¡Gracias!`
-      : `Hola ${client.nombre}, te recordamos que tu plan *${client.plan}* vence el ${format(client.vencimiento, "dd 'de' MMMM", { locale: es })}. El total es *$${client.total.toLocaleString('es-AR')}*.\n\n¡Que tengas un gran día! 💪`;
+  const message = dias === 0
+    ? `Hola Quería recordarte que hoy vence tu suscripción ⚠️
+¿Vas a querer renovar? 
+
+Debe abonar hoy! 💰 ${total}
+
+cbu : ${cbu}
+y alias : ${alias}`
+    : dias > 0
+      ? `Hola Quería recordarte que en 3 dias vence tu suscripción ⚠️
+¿Vas a querer renovar? 
+
+Debe abonar 💰 ${total}
+
+cbu : ${cbu}
+y alias : ${alias}`
+      : dias >= -30
+        ? `Hola 
+Tú suscripción ya está vencida ⚠️
+
+Vimos que aún no abonaste tu servicio, vas a querer renovar o procedemos con la baja? ❌
+
+Muchas gracias!`
+        : `Hola 
+Notamos que no renovas tu servicio hace un tiempo⚠️
+
+Te gustaria retomar con alguno de nuestros servicios?`;
 
   return (
     <motion.div

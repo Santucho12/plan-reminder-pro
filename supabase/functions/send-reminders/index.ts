@@ -8,6 +8,17 @@ const corsHeaders = {
 };
 
 const MP_BASE_URL = 'https://api.mercadopago.com';
+const DEFAULT_PAYMENT_ALIAS = 'Santi.abenel';
+const DEFAULT_PAYMENT_CBU = '0000003100092533873855';
+
+function buildTransferInfoLine(
+  aliasFromConfig?: string | null,
+) {
+  const alias = (aliasFromConfig || DEFAULT_PAYMENT_ALIAS)?.trim();
+  const cbu = DEFAULT_PAYMENT_CBU.trim();
+
+  return `\n\ncbu : ${cbu}\ny alias : ${alias}`;
+}
 
 async function createMPPreference(client: any, mpToken: string, webhookUrl: string, appUrl: string) {
   // Limpiar título de caracteres especiales que puedan molestar a MP
@@ -173,10 +184,11 @@ serve(async (req) => {
           }
         }
 
-        const diasNum = (client as any).diasNumCalculated;
-        const diasTexto = diasNum === 1 ? 'mañana' : `en ${diasNum} días`;
-        const linkTexto = linkPago ? `\n\nPodes ir pagando desde acá para renovar:\n🔗 ${linkPago}` : '';
-        const mensaje = `Hola ${client.nombre}, como estás? te recordamos que tu plan *${client.plan}* va a vencer ${diasTexto}. El total es *$${client.total}*.${linkTexto}\n\n¡Que tengas un buen día! 💪`;
+        const paymentInfo = buildTransferInfoLine(paymentAlias);
+        const mensaje = `Hola Quería recordarte que en 3 dias vence tu suscripción ⚠️
+¿Vas a querer renovar? 
+
+Debe abonar 💰 ${client.total}${paymentInfo}`;
         
         await supabase.from('messages_log').insert({
           client_id: client.id, user_id: client.user_id, tipo: 'recordatorio', mensaje, enviado: false, error: mpErrorDetail,
@@ -217,8 +229,11 @@ serve(async (req) => {
           errorDetalle: mpErrorDetail
         });
 
-        const linkTexto = linkPago ? `\n\nPodés pagar desde este link:\n🔗 ${linkPago}` : '\n\n_Contactate con nosotros para regularizar tu situación._';
-        const mensaje = `Hola ${client.nombre}, tu plan *${client.plan}* venció hoy. El total es *$${client.total}*.${linkTexto}\n\n¡Gracias!`;
+        const paymentInfo = buildTransferInfoLine(paymentAlias);
+        const mensaje = `Hola Quería recordarte que hoy vence tu suscripción ⚠️
+¿Vas a querer renovar? 
+
+Debe abonar hoy! 💰 ${client.total}${paymentInfo}`;
         await supabase.from('messages_log').insert({
           client_id: client.id, user_id: client.user_id, tipo: 'vencimiento', mensaje, enviado: false, error: mpErrorDetail,
         });
@@ -245,8 +260,12 @@ serve(async (req) => {
             results.errors.push(`MP Error para ${client.nombre}: ${mpErrorDetail}`);
           }
         }
-        const linkTexto = linkPago ? `\n\nTe mando el link de pago: 🔗 ${linkPago}` : '';
-        const mensaje = `Hola ${client.nombre}, notamos que tu plan *${client.plan}* ya se encuentra vencido. El total para renovarlo es *$${client.total}*.${linkTexto}\n\n¡Gracias!`;
+        const mensaje = `Hola 
+Tú suscripción ya está vencida ⚠️
+
+Vimos que aún no abonaste tu servicio, vas a querer renovar o procedemos con la baja? ❌
+
+Muchas gracias!`;
         await supabase.from('messages_log').insert({
           client_id: client.id, user_id: client.user_id, tipo: 'vencimiento', mensaje, enviado: false, error: mpErrorDetail,
         });
@@ -272,8 +291,10 @@ serve(async (req) => {
             results.errors.push(`MP Error para ${client.nombre}: ${mpErrorDetail}`);
           }
         }
-        const linkTexto = linkPago ? `\n\nTe mando el link de pago: 🔗 ${linkPago}` : '';
-        const mensaje = `Hola ${client.nombre}, notamos que hace un tiempo tu plan *${client.plan}* se encuentra vencido. El total para renovarlo es *$${client.total}*.\n\n¿Te gustaría renovarlo?${linkTexto}`;
+        const mensaje = `Hola 
+Notamos que no renovas tu servicio hace un tiempo⚠️
+
+Te gustaria retomar con alguno de nuestros servicios?`;
         await supabase.from('messages_log').insert({
           client_id: client.id, user_id: client.user_id, tipo: 'vencimiento', mensaje, enviado: false, error: mpErrorDetail,
         });

@@ -31,7 +31,7 @@ Debe abonar 💰 ${total}
 
 cbu : ${cbu}
 y alias : ${alias}`
-      : dias >= -30
+      : dias <= -1 && dias >= -30
         ? `Hola 
 Tú suscripción ya está vencida ⚠️
 

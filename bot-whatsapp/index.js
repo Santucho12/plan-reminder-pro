@@ -41,6 +41,20 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const DEFAULT_PAYMENT_ALIAS = 'Santi.abenel';
 const DEFAULT_PAYMENT_CBU = '0000003100092533873855';
 
+// Vencidos entre 1 y 30 días (pestaña "Vencidos")
+const MSG_EXPIRED_1_30 = `Hola 
+Tú suscripción ya está vencida ⚠️
+
+Vimos que aún no abonaste tu servicio, vas a querer renovar o procedemos con la baja? ❌
+
+Muchas gracias!`;
+
+// Vencidos hace más de 30 días (pestaña "Recuperación")
+const MSG_LOST_OVER_30 = `Hola 
+Notamos que no renovas tu servicio hace un tiempo⚠️
+
+Te gustaria retomar con alguno de nuestros servicios?`;
+
 // ID del usuario que este bot va a manejar
 const userId = process.env.USER_ID;
 
@@ -49,22 +63,19 @@ if (!userId) {
     process.exit(1);
 }
 
+console.log(`Supabase: ${supabaseUrl}`);
+console.log(`USER_ID bot: ${userId}`);
+
 const client = new Client({
     authStrategy: new LocalAuth(),
+    authTimeoutMs: 120000,
+    qrMaxRetries: 10,
     puppeteer: {
         headless: true,
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null,
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-extensions',
-            '--disable-web-security',
-            '--disable-features=IsolateOrigins,site-per-process'
-        ]
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+        // En Windows, menos flags = más estable (evita "Execution context was destroyed")
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
     },
-    webVersionCache: {
-        type: 'none'
-    }
 });
 
 client.on('auth_failure', msg => {
@@ -77,26 +88,41 @@ client.on('authenticated', () => {
 
 let qrUploaded = false;
 
+async function uploadQrToSupabase(qr, retries = 3) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        const { error } = await supabase
+            .from('user_configs')
+            .update({
+                wpp_qr_code: qr,
+                wpp_status: 'pending_qr',
+            })
+            .eq('user_id', userId);
+
+        if (!error) return true;
+
+        const details = error.details || error.hint || '';
+        console.error(`Error al subir QR (intento ${attempt}/${retries}):`, error.message, details);
+
+        if (attempt < retries) {
+            await new Promise((r) => setTimeout(r, 2000));
+        }
+    }
+    return false;
+}
+
 client.on('qr', async (qr) => {
     if (qrUploaded) {
         console.log('QR regenerado (ignorado, ya se subió uno válido).');
         return;
     }
-    
+
     console.log('--- NUEVO QR GENERADO ---');
-    const { error } = await supabase
-        .from('user_configs')
-        .update({ 
-            wpp_qr_code: qr, 
-            wpp_status: 'pending_qr' 
-        })
-        .eq('user_id', userId);
-    
-    if (error) {
-        console.error('Error al subir QR a Supabase:', error.message);
-    } else {
+    const ok = await uploadQrToSupabase(qr);
+    if (ok) {
         console.log('QR subido a Supabase con éxito. Escanealo desde la web.');
         qrUploaded = true;
+    } else {
+        console.error('No se pudo subir el QR. Revisá internet, SUPABASE_URL y USER_ID en .env');
     }
 });
 
@@ -194,29 +220,42 @@ cbu : ${cbu}
 y alias : ${alias}`;
     }
 
-    if (dias >= -30) {
-        return `Hola 
-Tú suscripción ya está vencida ⚠️
-
-Vimos que aún no abonaste tu servicio, vas a querer renovar o procedemos con la baja? ❌
-
-Muchas gracias!`;
+    if (dias <= -1 && dias >= -30) {
+        return MSG_EXPIRED_1_30;
     }
 
-    return `Hola 
-Notamos que no renovas tu servicio hace un tiempo⚠️
+    if (dias <= -31) {
+        return MSG_LOST_OVER_30;
+    }
 
-Te gustaria retomar con alguno de nuestros servicios?`;
+    return MSG_LOST_OVER_30;
+}
+
+function isCanonicalAutomationMessage(message) {
+    const lower = String(message || '').toLowerCase();
+    return (
+        lower.includes('ya está vencida') ||
+        lower.includes('procedemos con la baja') ||
+        lower.includes('hoy vence tu suscripción') ||
+        lower.includes('en 3 dias vence tu suscripción') ||
+        lower.includes('no renovas tu servicio hace un tiempo')
+    );
 }
 
 function buildAutomationMessage(msgType, originalMessage, dias, total, aliasFromConfig) {
+    const queued = String(originalMessage || '').trim();
+    // Si la cola ya trae el texto correcto (send-reminders), enviarlo tal cual
+    if (queued && isCanonicalAutomationMessage(queued)) {
+        return queued;
+    }
+
     // 1) Prioridad por tipo explícito de cola
     if (msgType === 'recordatorio') {
         return buildAutomationMessageByDays(3, total, aliasFromConfig);
     }
 
     // 2) Prioridad por contenido original (evita errores por dias desactualizado en DB)
-    const msgLower = String(originalMessage || '').toLowerCase();
+    const msgLower = queued.toLowerCase();
 
     if (
         msgLower.includes('hoy vence tu suscripción') ||
@@ -386,22 +425,37 @@ process.on('uncaughtException', async (err) => {
     await gracefulShutdown('uncaughtException');
 });
 
-async function initializeWithRetry(maxRetries = 3) {
+function isContextDestroyedError(message) {
+    const msg = String(message || '');
+    return (
+        msg.includes('Execution context was destroyed') ||
+        msg.includes('Protocol error') ||
+        msg.includes('detached Frame')
+    );
+}
+
+async function initializeWithRetry(maxRetries = 5) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             console.log(`Intento de inicialización ${attempt}/${maxRetries}...`);
             await client.initialize();
-            return; // Success
+            return;
         } catch (err) {
             console.error(`Error al inicializar el cliente (intento ${attempt}/${maxRetries}):`, err.message);
-            // Intentar cerrar el navegador para limpiar el estado
             try { await client.destroy(); } catch (_) {}
+
             if (attempt < maxRetries) {
-                const waitSec = attempt * 5;
+                const waitSec = attempt * 8;
                 console.log(`Reintentando en ${waitSec} segundos...`);
-                await new Promise(resolve => setTimeout(resolve, waitSec * 1000));
+                await new Promise((resolve) => setTimeout(resolve, waitSec * 1000));
             } else {
                 console.error('Se agotaron todos los intentos de inicialización.');
+                if (isContextDestroyedError(err.message)) {
+                    console.error('');
+                    console.error('Sugerencia: borrá la sesión y volvé a escanear el QR:');
+                    console.error('  npm run start:clean');
+                    console.error('(o borrá manualmente la carpeta bot-whatsapp/.wwebjs_auth)');
+                }
                 process.exit(1);
             }
         }

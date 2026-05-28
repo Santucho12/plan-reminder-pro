@@ -11,6 +11,18 @@ const MP_BASE_URL = 'https://api.mercadopago.com';
 const DEFAULT_PAYMENT_ALIAS = 'Santi.abenel';
 const DEFAULT_PAYMENT_CBU = '0000003100092533873855';
 
+const MSG_EXPIRED_1_30 = `Hola 
+Tú suscripción ya está vencida ⚠️
+
+Vimos que aún no abonaste tu servicio, vas a querer renovar o procedemos con la baja? ❌
+
+Muchas gracias!`;
+
+const MSG_LOST_OVER_30 = `Hola 
+Notamos que no renovas tu servicio hace un tiempo⚠️
+
+Te gustaria retomar con alguno de nuestros servicios?`;
+
 function buildTransferInfoLine(
   aliasFromConfig?: string | null,
 ) {
@@ -260,12 +272,7 @@ Debe abonar hoy! 💰 ${client.total}${paymentInfo}`;
             results.errors.push(`MP Error para ${client.nombre}: ${mpErrorDetail}`);
           }
         }
-        const mensaje = `Hola 
-Tú suscripción ya está vencida ⚠️
-
-Vimos que aún no abonaste tu servicio, vas a querer renovar o procedemos con la baja? ❌
-
-Muchas gracias!`;
+        const mensaje = MSG_EXPIRED_1_30;
         await supabase.from('messages_log').insert({
           client_id: client.id, user_id: client.user_id, tipo: 'vencimiento', mensaje, enviado: false, error: mpErrorDetail,
         });
@@ -291,10 +298,7 @@ Muchas gracias!`;
             results.errors.push(`MP Error para ${client.nombre}: ${mpErrorDetail}`);
           }
         }
-        const mensaje = `Hola 
-Notamos que no renovas tu servicio hace un tiempo⚠️
-
-Te gustaria retomar con alguno de nuestros servicios?`;
+        const mensaje = MSG_LOST_OVER_30;
         await supabase.from('messages_log').insert({
           client_id: client.id, user_id: client.user_id, tipo: 'vencimiento', mensaje, enviado: false, error: mpErrorDetail,
         });

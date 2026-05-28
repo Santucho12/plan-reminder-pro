@@ -4,7 +4,8 @@
   "description": "Bot experimental para enviar mensajes de WhatsApp desde tu número usando whatsapp-web.js",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "start:clean": "node scripts/clear-session.js && node index.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.1",

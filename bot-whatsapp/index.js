@@ -258,18 +258,12 @@ async function startPolling() {
             // Los links de MP ya vienen incluidos en el mensaje desde send-reminders
             const { data: messages, error } = await supabase
                 .from('messages_log')
-<<<<<<< HEAD
-                .select('*, clients(celular)')
-=======
                 .select('*, clients(celular, dias, total)')
->>>>>>> 2094d7f (fix message automation templates and bot routing)
                 .eq('user_id', userId)
                 .eq('enviado', false)
                 .order('created_at', { ascending: true })
                 .limit(1); 
 
-<<<<<<< HEAD
-=======
             // Buscamos el alias actual del usuario para inyectarlo si no está
             const { data: config } = await supabase
                 .from('user_configs')
@@ -279,7 +273,6 @@ async function startPolling() {
             
             const currentAlias = config?.payment_alias || DEFAULT_PAYMENT_ALIAS;
 
->>>>>>> 2094d7f (fix message automation templates and bot routing)
             if (error) throw error;
 
             for (const msg of messages) {
@@ -299,8 +292,6 @@ async function startPolling() {
 
                 const formattedPhone = phone.includes('@c.us') ? phone : `${phone}@c.us`;
 
-<<<<<<< HEAD
-=======
                 // --- PLAN B: FORZAR TEMPLATE FINAL POR DÍAS ---
                 const clientDaysNow = Number(msg.clients?.dias);
                 const clientTotalNow = Number(msg.clients?.total || 0);
@@ -328,11 +319,10 @@ async function startPolling() {
                 // Limpiar saltos de línea triples que puedan quedar
                 finalMessage = finalMessage.replace(/\n\n\n+/g, '\n\n').trim();
 
->>>>>>> 2094d7f (fix message automation templates and bot routing)
                 try {
                     console.log(`Enviando mensaje a ${formattedPhone}...`);
-                    console.log(`Contenido: "${msg.mensaje.substring(0, 50)}..."`);
-                    await client.sendMessage(formattedPhone, msg.mensaje);
+                    console.log(`Contenido final: "${finalMessage.substring(0, 50)}..."`);
+                    await client.sendMessage(formattedPhone, finalMessage);
                     
                     await supabase
                         .from('messages_log')

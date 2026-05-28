@@ -195,6 +195,25 @@ function buildTransferInfo(aliasFromConfig) {
     return `\n\nPodés abonar por transferencia:\n• *Alias:* ${alias}\n• *CBU:* ${cbu}`;
 }
 
+/** Misma lógica que la web (api.ts): días desde vencimiento, no el campo dias en DB. */
+function computeDaysFromVencimiento(vencimiento) {
+    if (!vencimiento) return null;
+    const dateStr = String(vencimiento).slice(0, 10);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const vDate = new Date(`${dateStr}T12:00:00`);
+    if (Number.isNaN(vDate.getTime())) return null;
+    vDate.setHours(0, 0, 0, 0);
+    return Math.round((vDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function resolveClientDays(vencimiento, diasStored) {
+    const fromDate = computeDaysFromVencimiento(vencimiento);
+    if (fromDate !== null && Number.isFinite(fromDate)) return fromDate;
+    const stored = Number(diasStored);
+    return Number.isFinite(stored) ? stored : null;
+}
+
 function buildAutomationMessageByDays(dias, total, aliasFromConfig) {
     const alias = (aliasFromConfig || DEFAULT_PAYMENT_ALIAS || '').trim();
     const cbu = (DEFAULT_PAYMENT_CBU || '').trim();
@@ -228,7 +247,11 @@ y alias : ${alias}`;
         return MSG_LOST_OVER_30;
     }
 
-    return MSG_LOST_OVER_30;
+    if (dias < 0) {
+        return MSG_EXPIRED_1_30;
+    }
+
+    return MSG_EXPIRED_1_30;
 }
 
 function isCanonicalAutomationMessage(message) {
@@ -242,19 +265,38 @@ function isCanonicalAutomationMessage(message) {
     );
 }
 
-function buildAutomationMessage(msgType, originalMessage, dias, total, aliasFromConfig) {
+function buildAutomationMessage(msgType, originalMessage, vencimiento, diasStored, total, aliasFromConfig) {
     const queued = String(originalMessage || '').trim();
-    // Si la cola ya trae el texto correcto (send-reminders), enviarlo tal cual
-    if (queued && isCanonicalAutomationMessage(queued)) {
-        return queued;
-    }
+    const effectiveDias = resolveClientDays(vencimiento, diasStored);
 
-    // 1) Prioridad por tipo explícito de cola
     if (msgType === 'recordatorio') {
         return buildAutomationMessageByDays(3, total, aliasFromConfig);
     }
 
-    // 2) Prioridad por contenido original (evita errores por dias desactualizado en DB)
+    if (msgType === 'vencido' || msgType === 'recuperacion') {
+        return msgType === 'vencido' ? MSG_EXPIRED_1_30 : MSG_LOST_OVER_30;
+    }
+
+    // Prioridad: fecha real del cliente (como la pestaña Vencidos / Recuperación)
+    if (effectiveDias !== null) {
+        if (effectiveDias >= 1 && effectiveDias <= 3) {
+            return buildAutomationMessageByDays(3, total, aliasFromConfig);
+        }
+        if (effectiveDias === 0) {
+            return buildAutomationMessageByDays(0, total, aliasFromConfig);
+        }
+        if (effectiveDias <= -1 && effectiveDias >= -30) {
+            return MSG_EXPIRED_1_30;
+        }
+        if (effectiveDias <= -31) {
+            return MSG_LOST_OVER_30;
+        }
+    }
+
+    if (queued && isCanonicalAutomationMessage(queued)) {
+        return queued;
+    }
+
     const msgLower = queued.toLowerCase();
 
     if (
@@ -276,18 +318,17 @@ function buildAutomationMessage(msgType, originalMessage, dias, total, aliasFrom
         msgLower.includes('ya está vencida') ||
         msgLower.includes('procedemos con la baja')
     ) {
-        return buildAutomationMessageByDays(-5, total, aliasFromConfig);
+        return MSG_EXPIRED_1_30;
     }
 
     if (
         msgLower.includes('no renovas tu servicio hace un tiempo') ||
         msgLower.includes('te gustaria retomar con alguno de nuestros servicios')
     ) {
-        return buildAutomationMessageByDays(-31, total, aliasFromConfig);
+        return MSG_LOST_OVER_30;
     }
 
-    // 3) Fallback por días actuales
-    return buildAutomationMessageByDays(dias, total, aliasFromConfig);
+    return buildAutomationMessageByDays(effectiveDias ?? Number(diasStored), total, aliasFromConfig);
 }
 async function startPolling() {
     // Polling cada 20 segundos (para cumplir con la meta de 3 mensajes por minuto)
@@ -297,7 +338,7 @@ async function startPolling() {
             // Los links de MP ya vienen incluidos en el mensaje desde send-reminders
             const { data: messages, error } = await supabase
                 .from('messages_log')
-                .select('*, clients(celular, dias, total)')
+                .select('*, clients(celular, dias, total, vencimiento)')
                 .eq('user_id', userId)
                 .eq('enviado', false)
                 .order('created_at', { ascending: true })
@@ -332,12 +373,13 @@ async function startPolling() {
                 const formattedPhone = phone.includes('@c.us') ? phone : `${phone}@c.us`;
 
                 // --- PLAN B: FORZAR TEMPLATE FINAL POR DÍAS ---
-                const clientDaysNow = Number(msg.clients?.dias);
+                const clientDaysNow = resolveClientDays(msg.clients?.vencimiento, msg.clients?.dias);
                 const clientTotalNow = Number(msg.clients?.total || 0);
                 let finalMessage = buildAutomationMessage(
                     msg.tipo,
                     msg.mensaje,
-                    clientDaysNow,
+                    msg.clients?.vencimiento,
+                    msg.clients?.dias,
                     clientTotalNow,
                     currentAlias
                 );
@@ -360,6 +402,7 @@ async function startPolling() {
 
                 try {
                     console.log(`Enviando mensaje a ${formattedPhone}...`);
+                    console.log(`Días efectivos: ${clientDaysNow} | Tipo cola: ${msg.tipo}`);
                     console.log(`Contenido final: "${finalMessage.substring(0, 50)}..."`);
                     await client.sendMessage(formattedPhone, finalMessage);
                     

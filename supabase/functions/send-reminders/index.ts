@@ -23,6 +23,18 @@ Notamos que no renovas tu servicio hace un tiempo⚠️
 
 Te gustaria retomar con alguno de nuestros servicios?`;
 
+/** Misma lógica que la web y el bot local */
+function computeDaysFromVencimiento(vencimiento: string): number | null {
+  if (!vencimiento) return null;
+  const dateStr = vencimiento.slice(0, 10);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const vDate = new Date(`${dateStr}T12:00:00`);
+  if (Number.isNaN(vDate.getTime())) return null;
+  vDate.setHours(0, 0, 0, 0);
+  return Math.round((vDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+}
+
 function buildTransferInfoLine(
   aliasFromConfig?: string | null,
 ) {
@@ -103,11 +115,12 @@ serve(async (req) => {
     // Obtener config del usuario (token de MP)
     const { data: userConfig } = await supabase
       .from('user_configs')
-      .select('mp_access_token')
+      .select('mp_access_token, payment_alias')
       .eq('user_id', userId)
       .single();
 
     const mpToken = userConfig?.mp_access_token;
+    const paymentAlias = userConfig?.payment_alias || DEFAULT_PAYMENT_ALIAS;
     const webhookUrl = `${supabaseUrl}/functions/v1/mercadopago-webhook`;
 
     console.log(`[DEBUG] userId: ${userId}`);
@@ -143,19 +156,11 @@ serve(async (req) => {
     const expiredClients = [];
     const lostClients = [];
 
-    // Calcular dias DINÁMICAMENTE desde la fecha de vencimiento ajustando a Horario Argentina (UTC-3)
-    const nowUtc = new Date();
-    // Restar 3 horas para obtener la fecha correcta de Argentina en caso de que en UTC ya sea "mañana"
-    const today = new Date(nowUtc.getTime() - 3 * 60 * 60 * 1000);
-    today.setUTCHours(0, 0, 0, 0);
-
     for (const client of allClients || []) {
       if (!client.vencimiento) continue;
 
-      // Parseamos la fecha de vencimiento tratándola como UTC absoluto para que coincida a la perfección
-      const vencDate = new Date(`${client.vencimiento}T00:00:00Z`);
-      const diffTime = vencDate.getTime() - today.getTime();
-      const diasNum = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const diasNum = computeDaysFromVencimiento(client.vencimiento);
+      if (diasNum === null) continue;
 
       if (mode === 'lost') {
         if (diasNum <= -31) {
@@ -257,7 +262,7 @@ Debe abonar hoy! 💰 ${client.total}${paymentInfo}`;
     // 2. Procesar Modo Expired (-1 a -30 días)
     else if (mode === 'expired') {
       for (const client of expiredClients) {
-        if (alreadySentSet.has(`${client.id}::vencimiento`)) { results.skipped++; continue; }
+        if (alreadySentSet.has(`${client.id}::vencido`)) { results.skipped++; continue; }
         if (sentPhones.has(client.celular)) { results.skipped++; continue; }
         
         let linkPago = '';
@@ -274,7 +279,7 @@ Debe abonar hoy! 💰 ${client.total}${paymentInfo}`;
         }
         const mensaje = MSG_EXPIRED_1_30;
         await supabase.from('messages_log').insert({
-          client_id: client.id, user_id: client.user_id, tipo: 'vencimiento', mensaje, enviado: false, error: mpErrorDetail,
+          client_id: client.id, user_id: client.user_id, tipo: 'vencido', mensaje, enviado: false, error: mpErrorDetail,
         });
         sentPhones.add(client.celular);
         results.expired_sent++;
@@ -283,7 +288,7 @@ Debe abonar hoy! 💰 ${client.total}${paymentInfo}`;
     // 3. Procesar Modo Lost (<= -31 días)
     else if (mode === 'lost') {
       for (const client of lostClients) {
-        if (alreadySentSet.has(`${client.id}::vencimiento`)) { results.skipped++; continue; }
+        if (alreadySentSet.has(`${client.id}::recuperacion`)) { results.skipped++; continue; }
         if (sentPhones.has(client.celular)) { results.skipped++; continue; }
         
         let linkPago = '';
@@ -300,7 +305,7 @@ Debe abonar hoy! 💰 ${client.total}${paymentInfo}`;
         }
         const mensaje = MSG_LOST_OVER_30;
         await supabase.from('messages_log').insert({
-          client_id: client.id, user_id: client.user_id, tipo: 'vencimiento', mensaje, enviado: false, error: mpErrorDetail,
+          client_id: client.id, user_id: client.user_id, tipo: 'recuperacion', mensaje, enviado: false, error: mpErrorDetail,
         });
         sentPhones.add(client.celular);
         results.lost_sent++;

@@ -50,10 +50,9 @@ Vimos que aún no abonaste tu servicio, vas a querer renovar o procedemos con la
 Muchas gracias!`;
 
 // Vencidos hace más de 30 días (pestaña "Recuperación")
-const MSG_LOST_OVER_30 = `Hola 
-Notamos que no renovas tu servicio hace un tiempo⚠️
-
-Te gustaria retomar con alguno de nuestros servicios?`;
+const MSG_LOST_OVER_30 = `Hola 👋🏼
+Notamos que no renovas tu suscripción hace un tiempo⚠️
+Te ofrecemos la oportunidad de reincorporarte con un 10% de descuento en cualquier plataforma que elijas 😁`;
 
 // ID del usuario que este bot va a manejar
 const userId = process.env.USER_ID;
@@ -282,7 +281,9 @@ function isCanonicalAutomationMessage(message) {
         lower.includes('procedemos con la baja') ||
         lower.includes('hoy vence tu suscripción') ||
         lower.includes('en 3 dias vence tu suscripción') ||
-        lower.includes('no renovas tu servicio hace un tiempo')
+        lower.includes('no renovas tu suscripción hace un tiempo') ||
+        lower.includes('no renovas tu servicio hace un tiempo') ||
+        lower.includes('reincorporarte con un 10% de descuento')
     );
 }
 
@@ -343,7 +344,9 @@ function buildAutomationMessage(msgType, originalMessage, vencimiento, diasStore
     }
 
     if (
+        msgLower.includes('no renovas tu suscripción hace un tiempo') ||
         msgLower.includes('no renovas tu servicio hace un tiempo') ||
+        msgLower.includes('reincorporarte con un 10% de descuento') ||
         msgLower.includes('te gustaria retomar con alguno de nuestros servicios')
     ) {
         return MSG_LOST_OVER_30;

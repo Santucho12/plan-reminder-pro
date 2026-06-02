@@ -543,7 +543,7 @@ const Index = () => {
                         <p className="text-base text-slate-700 font-medium leading-relaxed mb-6">Intentá recuperar clientes que no renuevan hace más de 30 días.<br/>Tu base de datos tiene <span className="font-black text-blue-900">{clients.filter(c => Number(c.dias) < -30).length} clientes</span> que no renueva su plan hace bastante.</p>
 
                         <div className="bg-slate-50 p-6 rounded-2xl border border-border/40 w-full text-slate-700 text-base font-medium whitespace-pre-line">
-                          {"Hola \nNotamos que no renovas tu servicio hace un tiempo⚠️\n\nTe gustaria retomar con alguno de nuestros servicios?"}
+                          {"Hola 👋🏼\nNotamos que no renovas tu suscripción hace un tiempo⚠️\nTe ofrecemos la oportunidad de reincorporarte con un 10% de descuento en cualquier plataforma que elijas 😁"}
                         </div>
 
                         <button

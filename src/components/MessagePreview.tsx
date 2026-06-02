@@ -38,10 +38,9 @@ Tú suscripción ya está vencida ⚠️
 Vimos que aún no abonaste tu servicio, vas a querer renovar o procedemos con la baja? ❌
 
 Muchas gracias!`
-        : `Hola 
-Notamos que no renovas tu servicio hace un tiempo⚠️
-
-Te gustaria retomar con alguno de nuestros servicios?`;
+        : `Hola 👋🏼
+Notamos que no renovas tu suscripción hace un tiempo⚠️
+Te ofrecemos la oportunidad de reincorporarte con un 10% de descuento en cualquier plataforma que elijas 😁`;
 
   return (
     <motion.div

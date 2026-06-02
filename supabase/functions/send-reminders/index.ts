@@ -18,10 +18,9 @@ Vimos que aún no abonaste tu servicio, vas a querer renovar o procedemos con la
 
 Muchas gracias!`;
 
-const MSG_LOST_OVER_30 = `Hola 
-Notamos que no renovas tu servicio hace un tiempo⚠️
-
-Te gustaria retomar con alguno de nuestros servicios?`;
+const MSG_LOST_OVER_30 = `Hola 👋🏼
+Notamos que no renovas tu suscripción hace un tiempo⚠️
+Te ofrecemos la oportunidad de reincorporarte con un 10% de descuento en cualquier plataforma que elijas 😁`;
 
 /** Misma lógica que la web y el bot local */
 function computeDaysFromVencimiento(vencimiento: string): number | null {

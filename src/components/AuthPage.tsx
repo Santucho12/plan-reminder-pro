@@ -53,7 +53,7 @@ const AuthPage = ({ onAuth }: AuthPageProps) => {
               Fiesta<span className="text-primary">Cobra</span>
             </h1>
             <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mt-3">
-              Cobrando en automático
+              Gestión de vencimientos
             </p>
           </div>
         </div>

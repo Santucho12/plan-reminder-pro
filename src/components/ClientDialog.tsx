@@ -1,42 +1,46 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, User, Phone, Calendar, CreditCard, Tag } from 'lucide-react';
-import { Client } from '@/types/client';
+import { Client, Plan } from '@/types/client';
 import { format } from 'date-fns';
 
 interface ClientDialogProps {
   client: Client | null; // null for new client
   onClose: () => void;
   onSave: (clientData: any) => Promise<void>;
+  /** Catálogo de plataformas: se sugieren al escribir y completan el importe. */
+  plans?: Plan[];
 }
 
-const ClientDialog = ({ client, onClose, onSave }: ClientDialogProps) => {
-  const [formData, setFormData] = useState({
+const ClientDialog = ({ client, onClose, onSave, plans = [] }: ClientDialogProps) => {
+  /** Datos con los que abre el formulario: los del cliente, o vacío para un alta. */
+  const initialData = useMemo(() => (client ? {
+    nombre: client.nombre,
+    celular: client.celular,
+    plan: client.plan,
+    vencimiento: format(client.vencimiento, 'yyyy-MM-dd'),
+    total: client.total,
+    nota_plataforma: client.nota_plataforma || '',
+    nota_precio: client.nota_precio || ''
+  } : {
     nombre: '',
     celular: '',
     plan: '',
     vencimiento: format(new Date(), 'yyyy-MM-dd'),
     total: 0,
-    estado: 'activo',
     nota_plataforma: '',
     nota_precio: ''
-  });
+  }), [client]);
+  const [formData, setFormData] = useState(initialData);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (client) {
-      setFormData({
-        nombre: client.nombre,
-        celular: client.celular,
-        plan: client.plan,
-        vencimiento: format(client.vencimiento, 'yyyy-MM-dd'),
-        total: client.total,
-        estado: client.estado,
-        nota_plataforma: client.nota_plataforma || '',
-        nota_precio: client.nota_precio || ''
-      });
-    }
-  }, [client]);
+    setFormData(initialData);
+  }, [initialData]);
+
+  const confirmDiscard = useUnsavedChanges(JSON.stringify(formData) !== JSON.stringify(initialData));
+  const close = () => confirmDiscard(onClose);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,12 +56,12 @@ const ClientDialog = ({ client, onClose, onSave }: ClientDialogProps) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in-fade">
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in-fade">
       <motion.div
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        className="bg-card w-full max-w-lg rounded-3xl shadow-2xl border border-border overflow-hidden"
+        className="bg-card w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl border border-border overflow-hidden max-h-[92vh] overflow-y-auto"
       >
         <div className="px-6 py-5 border-b border-border bg-secondary/20 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -68,8 +72,8 @@ const ClientDialog = ({ client, onClose, onSave }: ClientDialogProps) => {
               {client ? 'Editar Cliente' : 'Nuevo Cliente'}
             </h2>
           </div>
-          <button 
-            onClick={onClose}
+          <button type="button" aria-label="Cerrar"
+            onClick={close}
             className="p-2 rounded-full hover:bg-secondary transition-colors"
           >
             <X size={20} />
@@ -115,10 +119,19 @@ const ClientDialog = ({ client, onClose, onSave }: ClientDialogProps) => {
                   required
                   type="text"
                   value={formData.plan}
-                  onChange={(e) => setFormData({ ...formData, plan: e.target.value })}
+                  onChange={(e) => {
+                    const plan = e.target.value;
+                    // Al elegir un plan del catálogo se propone su precio si todavía no se cargó un importe
+                    const match = plans.find(p => p.nombre.toLowerCase() === plan.trim().toLowerCase());
+                    setFormData({ ...formData, plan, total: match && !formData.total ? match.precio : formData.total });
+                  }}
+                  list="catalogo-planes"
                   className="w-full h-12 rounded-xl bg-secondary/30 border-none px-4 text-sm font-semibold focus:ring-2 focus:ring-primary/20 transition-all"
                   placeholder="Ej: Netflix 4K"
                 />
+                <datalist id="catalogo-planes">
+                  {plans.map(p => <option key={p.nombre} value={p.nombre} />)}
+                </datalist>
               </div>
             </div>
 
@@ -189,7 +202,7 @@ const ClientDialog = ({ client, onClose, onSave }: ClientDialogProps) => {
           <div className="pt-4 flex gap-3">
             <button
               type="button"
-              onClick={onClose}
+              onClick={close}
               className="flex-1 h-12 rounded-xl bg-secondary text-foreground font-bold text-[10px] uppercase tracking-widest hover:bg-secondary/80 transition-all"
             >
               Cancelar

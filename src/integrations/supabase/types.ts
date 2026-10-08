@@ -22,9 +22,11 @@ export type Database = {
           dias: number | null
           estado: string
           id: string
-          mercadopago_preference_id: string | null
           nombre: string
+          nota_plataforma: string | null
+          nota_precio: string | null
           plan: string | null
+          seguimiento: string | null
           total: number
           ultimo_mensaje: string | null
           updated_at: string
@@ -38,9 +40,11 @@ export type Database = {
           dias?: number | null
           estado?: string
           id?: string
-          mercadopago_preference_id?: string | null
           nombre: string
+          nota_plataforma?: string | null
+          nota_precio?: string | null
           plan?: string | null
+          seguimiento?: string | null
           total?: number
           ultimo_mensaje?: string | null
           updated_at?: string
@@ -54,9 +58,11 @@ export type Database = {
           dias?: number | null
           estado?: string
           id?: string
-          mercadopago_preference_id?: string | null
           nombre?: string
+          nota_plataforma?: string | null
+          nota_precio?: string | null
           plan?: string | null
+          seguimiento?: string | null
           total?: number
           ultimo_mensaje?: string | null
           updated_at?: string
@@ -65,40 +71,49 @@ export type Database = {
         }
         Relationships: []
       }
-      messages_log: {
+      payments: {
         Row: {
-          client_id: string
+          client_id: string | null
+          cliente_nombre: string
           created_at: string
-          enviado: boolean
-          error: string | null
+          fecha_pago: string
           id: string
-          mensaje: string
-          tipo: string
+          medio: string
+          monto: number
+          plan: string | null
           user_id: string
+          vencimiento_anterior: string | null
+          vencimiento_nuevo: string | null
         }
         Insert: {
-          client_id: string
+          client_id?: string | null
+          cliente_nombre: string
           created_at?: string
-          enviado?: boolean
-          error?: string | null
+          fecha_pago?: string
           id?: string
-          mensaje: string
-          tipo: string
+          medio?: string
+          monto?: number
+          plan?: string | null
           user_id: string
+          vencimiento_anterior?: string | null
+          vencimiento_nuevo?: string | null
         }
         Update: {
-          client_id?: string
+          client_id?: string | null
+          cliente_nombre?: string
           created_at?: string
-          enviado?: boolean
-          error?: string | null
+          fecha_pago?: string
           id?: string
-          mensaje?: string
-          tipo?: string
+          medio?: string
+          monto?: number
+          plan?: string | null
           user_id?: string
+          vencimiento_anterior?: string | null
+          vencimiento_nuevo?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "messages_log_client_id_fkey"
+            foreignKeyName: "payments_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
@@ -106,45 +121,83 @@ export type Database = {
           },
         ]
       }
+      client_events: {
+        Row: {
+          client_id: string
+          created_at: string
+          detalle: string
+          id: string
+          tipo: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          detalle?: string
+          id?: string
+          tipo: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          detalle?: string
+          id?: string
+          tipo?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_events_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      app_members: {
+        Row: {
+          clave: string | null
+          created_at: string
+          rol: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          clave?: string | null
+          created_at?: string
+          rol: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          clave?: string | null
+          created_at?: string
+          rol?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       user_configs: {
         Row: {
           id: string
-          mp_access_token: string | null
-          msg_recordatorio: string
-          msg_recuperacion: string
-          msg_vencidos: string
-          msg_vencimiento_hoy: string
+          settings: Json | null
           updated_at: string
           user_id: string
-          wpp_last_heartbeat: string | null
-          wpp_qr_code: string | null
-          wpp_status: string | null
         }
         Insert: {
           id?: string
-          mp_access_token?: string | null
-          msg_recordatorio?: string
-          msg_recuperacion?: string
-          msg_vencidos?: string
-          msg_vencimiento_hoy?: string
+          settings?: Json | null
           updated_at?: string
           user_id: string
-          wpp_last_heartbeat?: string | null
-          wpp_qr_code?: string | null
-          wpp_status?: string | null
         }
         Update: {
           id?: string
-          mp_access_token?: string | null
-          msg_recordatorio?: string
-          msg_recuperacion?: string
-          msg_vencidos?: string
-          msg_vencimiento_hoy?: string
+          settings?: Json | null
           updated_at?: string
           user_id?: string
-          wpp_last_heartbeat?: string | null
-          wpp_qr_code?: string | null
-          wpp_status?: string | null
         }
         Relationships: []
       }
@@ -153,7 +206,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      current_workspace: { Args: never; Returns: string }
+      list_members: {
+        Args: never
+        Returns: { clave: string | null; email: string; rol: string; user_id: string }[]
+      }
     }
     Enums: {
       [_ in never]: never

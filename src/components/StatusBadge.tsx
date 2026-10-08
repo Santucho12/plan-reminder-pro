@@ -42,7 +42,7 @@ const StatusBadge = ({ status }: StatusBadgeProps) => {
 
   return (
     <span className={cn(
-      "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all duration-300 shadow-sm",
+      "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap border transition-all duration-300 shadow-sm",
       styles.className
     )}>
       <Icon size={12} strokeWidth={2.5} />

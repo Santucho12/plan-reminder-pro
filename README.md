@@ -1,73 +1,46 @@
-# Welcome to your Lovable project
+# FiestaCobra
 
-## Project info
+Panel para gestionar la cobranza de suscripciones: clientes, vencimientos, pagos, catálogo de
+plataformas/combos y mensajes de WhatsApp prearmados (se envían con links `wa.me`).
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+**Stack:** Vite + React + TypeScript + Tailwind/shadcn, Supabase (Auth + Postgres con RLS), deploy en Vercel.
 
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+## Desarrollo
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+cp .env.example .env   # completar con la URL y la publishable key del proyecto de Supabase
+npm install
+npm run dev            # http://localhost:8080
+npm test               # tests con Vitest
+npm run build
 ```
 
-**Edit a file directly in GitHub**
+En `.env` solo van claves públicas (`VITE_*`). La service_role / secret key de Supabase **nunca**
+se pone en el repo ni en el frontend.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Base de datos
 
-**Use GitHub Codespaces**
+- `supabase/esquema_completo.sql`: crea todo desde cero en un proyecto nuevo (se puede correr más de una vez).
+- `supabase/migrations/`: cambios incrementales. Se aplican a mano desde el SQL Editor del dashboard
+  de Supabase (o con `supabase db push`).
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Tablas: `clients`, `payments`, `client_events` (historial de la ficha) y `user_configs`
+(`settings` jsonb con plantillas, datos de cobro y catálogo). Cada usuario ve solo sus filas (RLS).
 
-## What technologies are used for this project?
+## Usuarios
 
-This project is built with:
+Hay dos usuarios que comparten los mismos datos (tabla `app_members`, función `current_workspace()`):
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- **Administrador** fijo: `admin@gmail.com` / `12345678`. No se modifica desde la app.
+- **Usuario configurable**: su mail y contraseña se cambian en Configuración → Accesos, a través de
+  la Edge Function `supabase/functions/manage-user` (deploy: `npx supabase functions deploy manage-user --use-api`).
 
-## How can I deploy this project?
+El registro público está deshabilitado en Supabase Auth; los usuarios se crean desde el dashboard o la API admin.
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## Estructura
 
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- `src/pages/Index.tsx`: pantalla principal y estado de la app.
+- `src/components/`: vistas (clientes, mensajes, plataformas, configuración, ficha, cola de envío…).
+- `src/lib/api.ts`: acceso a Supabase, importación de Excel y pagos.
+- `src/lib/whatsapp.ts`: plantillas, segmentos de vencimiento y armado de mensajes/links.
+- `src/lib/stats.ts`: métricas del panel.

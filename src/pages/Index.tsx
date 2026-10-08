@@ -8,23 +8,58 @@ import SummaryCards from '@/components/SummaryCards';
 import ClientTable from '@/components/ClientTable';
 import ExcelUpload from '@/components/ExcelUpload';
 import MessagePreview from '@/components/MessagePreview';
+import MessagesView from '@/components/MessagesView';
 import AuthPage from '@/components/AuthPage';
 import ConfigView from '@/components/ConfigView';
 import ClientDialog from '@/components/ClientDialog';
+import ClientSheet from '@/components/ClientSheet';
+import PaymentDialog, { PaymentInput } from '@/components/PaymentDialog';
+import PlansView from '@/components/PlansView';
+import SendQueue from '@/components/SendQueue';
+import ModuleHelp, { HelpModule } from '@/components/ModuleHelp';
+import { UnsavedChangesProvider, useConfirmLeave } from '@/hooks/useUnsavedChanges';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "@/components/ui/select";
-import { Client } from '@/types/client';
-import { Download, Search, Filter, ArrowUpDown, Activity, Clock, UserPlus, FileSpreadsheet } from 'lucide-react';
-import { fetchClients, triggerReminders, updateClient, deleteClient, createClient, exportClientsToExcel } from '@/lib/api';
-import { useWhatsAppStatus } from '@/hooks/useWhatsAppStatus';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Client, CobroData, Payment, Plan } from '@/types/client';
+import { Download, Search, Activity, Clock, UserPlus, FileSpreadsheet, AlertTriangle } from 'lucide-react';
+import {
+  addClientEvent,
+  createClient,
+  deleteClient,
+  exportClientsToExcel,
+  fetchClients,
+  fetchPayments,
+  fetchSettingsJson,
+  fetchWorkspaceId,
+  isMissingSchema,
+  SCHEMA_PENDING_MESSAGE,
+  registerPayment,
+  saveSettingsJson,
+  undoPayment,
+  updateClient,
+  updateClientsPlan,
+  updateClientsTotal,
+} from '@/lib/api';
+import {
+  AppSettings,
+  TEMPLATE_LABELS,
+  TemplateKey,
+  getSegment,
+  isCobroEmpty,
+  parseSettings,
+  serializeSettings,
+} from '@/lib/whatsapp';
 
-const Index = () => {
+const IndexPage = () => {
+  const confirmLeave = useConfirmLeave();
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [loading, setLoading] = useState(false);
   const [activeView, setActiveView] = useState('dashboard');
   const [clients, setClients] = useState<Client[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  /** Falta aplicar la migración de pagos / ficha en la base. */
+  const [schemaPending, setSchemaPending] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,6 +69,14 @@ const Index = () => {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [clientToEdit, setClientToEdit] = useState<Client | null>(null);
+  const [paymentClient, setPaymentClient] = useState<Client | null>(null);
+  const [sheetClientId, setSheetClientId] = useState<string | null>(null);
+  const [increaseQueue, setIncreaseQueue] = useState<Client[] | null>(null);
+  const [settings, setSettings] = useState<AppSettings>(() => parseSettings(null));
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  /** Workspace de datos (compartido entre el admin y el usuario configurable). */
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [noAccess, setNoAccess] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -41,30 +84,40 @@ const Index = () => {
       setAuthLoading(false);
     });
 
+    // Supabase vuelve a avisar SIGNED_IN cada vez que se regresa a la pestaña (por ejemplo, después de
+    // abrir WhatsApp). Si es el mismo usuario se conserva el objeto: si no, se recargaría toda la app
+    // y se cerrarían la cola de envío y las ventanas abiertas.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      const next = session?.user ?? null;
+      setUser(prev => (prev && next && prev.id === next.id && prev.email === next.email ? prev : next));
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
+  const userId = user?.id ?? null;
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const status = urlParams.get('status') || urlParams.get('collection_status');
-
-    if (status === 'approved' || status === 'success') {
-      toast.success('¡Pago Procesado con Éxito!', {
-        description: 'El cliente ya fue actualizado en el sistema.',
-        duration: 8000,
+    setWorkspaceId(null);
+    setNoAccess(false);
+    if (!userId) return;
+    let cancelled = false;
+    fetchWorkspaceId(userId)
+      .then(id => {
+        if (cancelled) return;
+        if (id) setWorkspaceId(id);
+        else setNoAccess(true);
+      })
+      .catch(err => {
+        console.error('Error loading workspace:', err);
+        if (!cancelled) toast.error('No se pudo cargar tu acceso');
       });
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, []);
+    return () => { cancelled = true; };
+  }, [userId]);
 
   const loadClients = useCallback(async () => {
-    if (!user) return;
+    if (!workspaceId) return;
     try {
-      const data = await fetchClients(user.id);
+      const data = await fetchClients(workspaceId);
       setClients(data.map(c => ({
         ...c,
         id: c.id,
@@ -83,23 +136,119 @@ const Index = () => {
       console.error('Error loading clients:', err);
       toast.error('Error al cargar clientes');
     }
-  }, [user]);
+  }, [workspaceId]);
+
+  const loadPayments = useCallback(async () => {
+    if (!workspaceId) return;
+    try {
+      setPayments(await fetchPayments(workspaceId));
+      setSchemaPending(false);
+    } catch (err) {
+      // Sin la tabla de pagos la app sigue funcionando; solo se avisa que falta la migración
+      if (isMissingSchema(err)) setSchemaPending(true);
+      else console.error('Error loading payments:', err);
+    }
+  }, [workspaceId]);
 
   useEffect(() => {
     loadClients();
-  }, [loadClients]);
+    loadPayments();
+  }, [loadClients, loadPayments]);
+
+  // Plantillas, datos de cobro y catálogo guardados por el usuario
+  useEffect(() => {
+    if (!workspaceId) return;
+    let cancelled = false;
+    fetchSettingsJson(workspaceId)
+      .then(raw => {
+        if (cancelled) return;
+        setSettings(parseSettings(raw));
+        setSettingsLoaded(true);
+      })
+      .catch(err => console.error('Error loading settings:', err));
+    return () => { cancelled = true; };
+  }, [workspaceId]);
+
+  const saveSettings = async (next: AppSettings) => {
+    if (!workspaceId) return;
+    await saveSettingsJson(workspaceId, serializeSettings(next));
+    setSettings(next);
+  };
+
+  const handleSaveTemplate = async (key: TemplateKey, text: string) => {
+    try {
+      await saveSettings({ ...settings, templates: { ...settings.templates, [key]: text } });
+      toast.success('Mensaje guardado');
+    } catch (error) {
+      toast.error('No se pudo guardar el mensaje');
+      throw error;
+    }
+  };
+
+  const handleSaveCobro = async (cobro: CobroData) => {
+    try {
+      await saveSettings({ ...settings, cobro });
+      toast.success('Datos de cobro guardados');
+    } catch (error) {
+      toast.error('No se pudieron guardar los datos de cobro');
+      throw error;
+    }
+  };
+
+  /** Guarda el catálogo y, si se pide, lleva el precio de cada plan a sus clientes. Devuelve los clientes modificados. */
+  /**
+   * Guarda el catálogo. Primero pasa a los clientes de los planes renombrados al nombre nuevo y,
+   * si se pide, lleva el precio de cada plan a sus clientes. Devuelve los clientes con precio cambiado.
+   */
+  const handleSavePlans = async (
+    planes: Plan[],
+    options: { applyToClients: boolean; skipNoted: boolean; renames?: { from: string; to: string }[] },
+  ) => {
+    const norm = (value: string) => value.trim().toLowerCase();
+    const affected: Client[] = [];
+    let renamed = false;
+    try {
+      let current = clients;
+      for (const { from, to } of options.renames ?? []) {
+        const targets = current.filter(c => norm(c.plan) === norm(from));
+        if (targets.length === 0) continue;
+        await updateClientsPlan(targets.map(c => c.id), to);
+        renamed = true;
+        const ids = new Set(targets.map(c => c.id));
+        current = current.map(c => (ids.has(c.id) ? { ...c, plan: to } : c));
+      }
+      if (options.applyToClients) {
+        for (const plan of planes) {
+          const targets = current.filter(c =>
+            norm(c.plan) === norm(plan.nombre) && c.total !== plan.precio && !(options.skipNoted && c.nota_precio)
+          );
+          if (targets.length === 0) continue;
+          await updateClientsTotal(targets.map(c => c.id), plan.precio);
+          affected.push(...targets.map(c => ({ ...c, total: plan.precio })));
+        }
+      }
+      await saveSettings({ ...settings, planes });
+      if (affected.length > 0 || renamed) await loadClients();
+      toast.success(options.applyToClients ? 'Precios actualizados' : 'Catálogo guardado');
+      return affected;
+    } catch (error) {
+      toast.error('No se pudieron guardar los precios');
+      if (affected.length > 0 || renamed) loadClients();
+      throw error;
+    }
+  };
 
   // Realtime listener
   useEffect(() => {
-    if (!user) return;
+    if (!workspaceId) return;
     const channel = supabase
       .channel('clients-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'clients', filter: `user_id=eq.${user.id}` }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'clients', filter: `user_id=eq.${workspaceId}` }, () => {
         loadClients();
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [user, loadClients]);
+  }, [workspaceId, loadClients]);
 
   const handleImport = async () => {
     await loadClients();
@@ -111,19 +260,77 @@ const Index = () => {
     setSelectedClient(client);
   };
 
+  const handleMessageSent = async (client: Client, templateKey?: TemplateKey) => {
+    const now = new Date();
+    setClients(prev => prev.map(c => (c.id === client.id ? { ...c, ultimoMensaje: now } : c)));
+    try {
+      await updateClient(client.id, { ultimo_mensaje: now.toISOString() });
+    } catch {
+      toast.error('No se pudo registrar el envío');
+    }
+    // El historial de la ficha es un extra: si falla no interrumpe el envío
+    if (workspaceId) {
+      const label = TEMPLATE_LABELS[templateKey ?? getSegment(client) ?? 'soon'];
+      addClientEvent(workspaceId, client.id, 'mensaje', `Plantilla: ${label}`).catch(() => {});
+    }
+  };
+
+  const handleRegisterPayment = async (input: PaymentInput) => {
+    if (!user || !paymentClient) return;
+    try {
+      await registerPayment(workspaceId, paymentClient, input);
+      toast.success('Pago registrado');
+      await Promise.all([loadClients(), loadPayments()]);
+    } catch (error: any) {
+      toast.error(error?.message || 'No se pudo registrar el pago');
+      throw error;
+    }
+  };
+
+  const handleUndoPayment = async (payment: Payment) => {
+    if (!window.confirm(`¿Deshacer el pago de ${payment.cliente_nombre}? El cliente vuelve al vencimiento anterior.`)) return;
+    try {
+      const { vencimientoRevertido } = await undoPayment(payment);
+      if (vencimientoRevertido || !payment.client_id) {
+        toast.success('Pago deshecho');
+      } else {
+        toast.warning(`Se borró el pago, pero el vencimiento de ${payment.cliente_nombre} no se tocó: tuvo una renovación posterior o ya no está cargado.`);
+      }
+      await Promise.all([loadClients(), loadPayments()]);
+    } catch {
+      toast.error('No se pudo deshacer el pago');
+    }
+  };
+
+  /** Da de baja (deja de aparecer en Mensajes y en el dashboard) o reactiva al cliente. */
+  const handleToggleBaja = async (client: Client) => {
+    if (!workspaceId) return;
+    const seguimiento = client.seguimiento === 'baja' ? null : 'baja';
+    try {
+      await updateClient(client.id, { seguimiento });
+    } catch (error) {
+      throw isMissingSchema(error) ? new Error(SCHEMA_PENDING_MESSAGE) : error;
+    }
+    setClients(prev => prev.map(c => (c.id === client.id ? { ...c, seguimiento } : c)));
+    toast.success(seguimiento ? `${client.nombre} quedó dado de baja` : `${client.nombre} fue reactivado`);
+    addClientEvent(workspaceId, client.id, 'estado', seguimiento ? 'Dado de baja' : 'Reactivado').catch(() => {});
+  };
+
   const handleSaveClient = async (clientData: any) => {
-    if (!user) return;
+    if (!workspaceId) return;
     try {
       if (clientToEdit) {
         await updateClient(clientToEdit.id, clientData);
         toast.success('Cliente actualizado correctamente');
       } else {
-        await createClient(user.id, clientData);
+        await createClient(workspaceId, clientData);
         toast.success('Cliente creado correctamente');
       }
       loadClients();
     } catch (error) {
       toast.error('Error al guardar cliente');
+      // Se propaga para que el formulario no se cierre y no se pierda lo cargado
+      throw error;
     }
   };
 
@@ -143,9 +350,17 @@ const Index = () => {
     await supabase.auth.signOut();
     setUser(null);
     setClients([]);
+    setPayments([]);
+    setSettings(parseSettings(null));
+    setSettingsLoaded(false);
+    setSheetClientId(null);
+    setActiveView('dashboard');
   };
 
-  const wppStatus = useWhatsAppStatus(user?.id);
+  const openEdit = (client: Client | null) => {
+    setClientToEdit(client);
+    setIsDialogOpen(true);
+  };
 
   const platforms = Array.from(new Set(clients.map(c => c.plan).filter(Boolean)));
   const statuses = Array.from(new Set(clients.map(c => c.estado).filter(Boolean)));
@@ -163,24 +378,49 @@ const Index = () => {
       return 0;
     });
 
+  const sheetClient = sheetClientId ? clients.find(c => c.id === sheetClientId) ?? null : null;
+
   if (authLoading) return null;
   if (!user) return <AuthPage onAuth={() => {}} />;
+  if (noAccess) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+        <h2 className="text-xl font-bold">Tu usuario no tiene acceso</h2>
+        <p className="text-sm text-muted-foreground">Entrá con el usuario administrador o con el usuario configurado.</p>
+        <button type="button" onClick={handleLogout} className="px-5 h-11 rounded-xl bg-primary text-white text-sm font-bold">
+          Cerrar sesión
+        </button>
+      </div>
+    );
+  }
+  if (!workspaceId) return null;
+
+  const tableActions = {
+    onSendMessage: handleSendMessage,
+    onEdit: openEdit,
+    onDelete: handleDeleteClient,
+    onRegisterPayment: setPaymentClient,
+    onOpen: (client: Client) => setSheetClientId(client.id),
+  };
+
+  const headingClass = 'text-2xl md:text-4xl font-display font-extrabold tracking-tight';
+  const subtitleClass = 'text-sm md:text-base text-muted-foreground font-medium mt-1 md:mt-2';
 
   return (
     <div className="min-h-screen bg-background">
       <AppSidebar
         activeView={activeView}
-        onViewChange={setActiveView}
-        wppStatus={wppStatus}
+        onViewChange={(view) => { if (view !== activeView) confirmLeave(() => setActiveView(view)); }}
         hasClients={clients.length > 0}
+        onLogout={() => confirmLeave(handleLogout)}
       />
 
-      <main className="ml-[260px] p-10 min-h-screen relative overflow-hidden">
+      <main className="md:ml-[260px] px-4 pt-20 pb-28 md:p-10 min-h-screen relative overflow-hidden">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-[100px] -z-10" />
         <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-emerald-500/5 rounded-full translate-y-1/2 -translate-x-1/2 blur-[80px] -z-10" />
 
         <div className="max-w-7xl mx-auto">
-          <header className="mb-10 animate-in-fade">
+          <header className="mb-6 md:mb-10 animate-in-fade flex items-start gap-3">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeView}
@@ -188,37 +428,35 @@ const Index = () => {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 10 }}
                 transition={{ duration: 0.2 }}
+                className="flex-1 min-w-0"
               >
                 {activeView === 'dashboard' && (
                   <>
-                    <h2 className="text-4xl font-display font-extrabold tracking-tight">Panel de Control</h2>
-                    <p className="text-muted-foreground font-medium mt-2">
+                    <h2 className={headingClass}>Panel de Control</h2>
+                    <p className={subtitleClass}>
                       {clients.length > 0
                         ? `Gestionando ${clients.length} clientes en el sistema.`
-                        : 'Cargá tu base de datos para comenzar la automatización.'}
+                        : 'Cargá tu base de datos para comenzar a gestionar vencimientos.'}
                     </p>
                   </>
                 )}
                 {activeView === 'clientes' && (
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     <div>
-                      <h2 className="text-4xl font-display font-extrabold tracking-tight">Gestión de Clientes</h2>
-                      <p className="text-muted-foreground font-medium mt-2">Buscá, filtrá y organizá tu base de datos.</p>
+                      <h2 className={headingClass}>Gestión de Clientes</h2>
+                      <p className={subtitleClass}>Buscá, filtrá y organizá tu base de datos.</p>
                     </div>
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => exportClientsToExcel(clients)}
-                        className="px-6 h-12 rounded-2xl bg-emerald-600 text-white font-bold text-sm uppercase tracking-widest shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/30 active:scale-95 transition-all flex items-center justify-center gap-3"
+                        className="flex-1 lg:flex-none px-4 md:px-6 h-12 rounded-2xl bg-emerald-600 text-white font-bold text-xs md:text-sm uppercase tracking-widest shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/30 active:scale-95 transition-all flex items-center justify-center gap-2 md:gap-3"
                       >
                         <FileSpreadsheet size={18} />
                         Exportar Excel
                       </button>
                       <button
-                        onClick={() => {
-                          setClientToEdit(null);
-                          setIsDialogOpen(true);
-                        }}
-                        className="px-6 h-12 rounded-2xl bg-primary text-white font-bold text-sm uppercase tracking-widest shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-95 transition-all flex items-center justify-center gap-3"
+                        onClick={() => openEdit(null)}
+                        className="flex-1 lg:flex-none px-4 md:px-6 h-12 rounded-2xl bg-primary text-white font-bold text-xs md:text-sm uppercase tracking-widest shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-95 transition-all flex items-center justify-center gap-2 md:gap-3"
                       >
                         <UserPlus size={18} />
                         Nuevo Cliente
@@ -228,24 +466,32 @@ const Index = () => {
                 )}
                 {activeView === 'mensajes' && (
                   <>
-                    <h2 className="text-4xl font-display font-extrabold tracking-tight">Envio de mensajes </h2>
-                    <p className="text-muted-foreground font-medium mt-2">Gestioná el contenido de los recordatorios.</p>
+                    <h2 className={headingClass}>Mensajes</h2>
+                    <p className={subtitleClass}>Abrí el chat de WhatsApp de cada cliente con el mensaje ya armado.</p>
+                  </>
+                )}
+                {activeView === 'plataformas' && (
+                  <>
+                    <h2 className={headingClass}>Plataformas</h2>
+                    <p className={subtitleClass}>Catálogo de planes, precios y aumentos.</p>
                   </>
                 )}
                 {activeView === 'config' && (
                   <>
-                    <h2 className="text-4xl font-display font-extrabold tracking-tight">Configuración de Sistema</h2>
-                    <p className="text-muted-foreground font-medium mt-2">Acceso a la Api de Whatsapp y Mercado Pago</p>
+                    <h2 className={headingClass}>Configuración de Sistema</h2>
+                    <p className={subtitleClass}>Datos de cobro, accesos y carga de la base de datos.</p>
                   </>
                 )}
                 {activeView === 'upload' && (
                   <>
-                    <h2 className="text-4xl font-display font-extrabold tracking-tight">Importación masiva</h2>
-                    <p className="text-muted-foreground font-medium mt-2">Subí tus archivos Excel para sincronizar clientes.</p>
+                    <h2 className={headingClass}>Importación masiva</h2>
+                    <p className={subtitleClass}>Subí tus archivos Excel para sincronizar clientes.</p>
                   </>
                 )}
               </motion.div>
             </AnimatePresence>
+            {/* Ayuda de la pantalla (la importación usa la de Configuración) */}
+            <ModuleHelp key={activeView} module={activeView === 'upload' ? 'config' : (activeView as HelpModule)} />
           </header>
 
           <AnimatePresence mode="wait">
@@ -256,14 +502,39 @@ const Index = () => {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
             >
+              {settingsLoaded && isCobroEmpty(settings.cobro) && (activeView === 'dashboard' || activeView === 'mensajes') && (
+                <div role="alert" className="mb-8 flex flex-col sm:flex-row sm:items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-900">
+                  <AlertTriangle size={18} className="shrink-0" />
+                  <p className="text-sm flex-1">
+                    <span className="font-bold">Faltan tus datos de cobro.</span>{' '}
+                    Cargá tu alias o CBU para que los mensajes le digan al cliente cómo pagarte.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => confirmLeave(() => setActiveView('config'))}
+                    className="px-4 h-9 rounded-xl bg-amber-600 text-white text-xs font-bold hover:bg-amber-700 transition-colors"
+                  >
+                    Cargar datos de cobro
+                  </button>
+                </div>
+              )}
+
               {activeView === 'dashboard' && (
                 <div className="space-y-8">
+                  {schemaPending && (
+                    <div className="flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-900">
+                      <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+                      <p className="text-sm">
+                        <span className="font-bold">Falta actualizar la base de datos.</span>{' '}
+                        Para registrar pagos y usar la ficha del cliente hay que aplicar la migración{' '}
+                        <code className="font-mono text-xs">20261007120000_payments_and_client_events.sql</code> en Supabase.
+                      </p>
+                    </div>
+                  )}
                   {clients.length > 0 ? (
                     <div className="space-y-10">
                       <section className="space-y-6">
-                        <div className="flex items-center gap-3 px-1 text-slate-800">
-                        </div>
-                        <SummaryCards clients={clients} />
+                        <SummaryCards clients={clients} payments={payments} onUndoPayment={handleUndoPayment} />
                       </section>
 
                       <section className="space-y-6">
@@ -273,32 +544,24 @@ const Index = () => {
                         </div>
                         <Tabs defaultValue="today" className="w-full">
                           <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <TabsList className="bg-secondary/40 backdrop-blur-md p-1.5 rounded-2xl border border-white/40 h-auto">
-                              <TabsTrigger value="today" className="px-8 py-2.5 rounded-xl font-bold transition-all data-[state=active]:bg-white data-[state=active]:shadow-lg">
+                            <TabsList className="bg-secondary/40 backdrop-blur-md p-1.5 rounded-2xl border border-white/40 h-auto w-full md:w-auto">
+                              <TabsTrigger value="today" className="flex-1 md:flex-none px-3 md:px-8 py-2.5 rounded-xl font-bold transition-all data-[state=active]:bg-white data-[state=active]:shadow-lg">
                                 <Activity className="w-4 h-4 mr-2" />
                                 Vencen Hoy
                               </TabsTrigger>
-                              <TabsTrigger value="soon" className="px-8 py-2.5 rounded-xl font-bold transition-all data-[state=active]:bg-white data-[state=active]:shadow-lg">
+                              <TabsTrigger value="soon" className="flex-1 md:flex-none px-3 md:px-8 py-2.5 rounded-xl font-bold transition-all data-[state=active]:bg-white data-[state=active]:shadow-lg">
                                 <Clock className="w-4 h-4 mr-2" />
                                 Próximos 3 días
                               </TabsTrigger>
                             </TabsList>
 
-                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                            <div className="hidden md:flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
                               <span className="w-2 h-2 rounded-full bg-emerald-500" /> Sincronizado en tiempo real
                             </div>
                           </div>
 
                           <TabsContent value="today" className="mt-0 outline-none animate-in-slide">
-                            <ClientTable
-                              clients={clients.filter(c => Number(c.dias) === 0)}
-                              onSendMessage={handleSendMessage}
-                              onEdit={(client) => {
-                                setClientToEdit(client);
-                                setIsDialogOpen(true);
-                              }}
-                              onDelete={handleDeleteClient}
-                            />
+                            <ClientTable clients={clients.filter(c => Number(c.dias) === 0)} {...tableActions} />
                           </TabsContent>
 
                           <TabsContent value="soon" className="mt-0 outline-none animate-in-slide">
@@ -310,38 +573,30 @@ const Index = () => {
                                 })
                                 .sort((a, b) => Number(a.dias) - Number(b.dias))
                               }
-                              onSendMessage={handleSendMessage}
-                              onEdit={(client) => {
-                                setClientToEdit(client);
-                                setIsDialogOpen(true);
-                              }}
-                              onDelete={handleDeleteClient}
+                              {...tableActions}
                             />
                           </TabsContent>
                         </Tabs>
                       </section>
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-20 px-8 bg-card rounded-[3rem] border border-dashed border-slate-200 shadow-2xl shadow-slate-200/50 text-center animate-in zoom-in duration-700">
+                    <div className="flex flex-col items-center justify-center py-14 md:py-20 px-6 md:px-8 bg-card rounded-[2rem] md:rounded-[3rem] border border-dashed border-slate-200 shadow-2xl shadow-slate-200/50 text-center animate-in zoom-in duration-700">
                       <div className="w-24 h-24 rounded-3xl bg-primary/10 flex items-center justify-center mb-8 rotate-3 shadow-inner">
                         <Download size={40} className="text-primary/40" />
                       </div>
                       <h3 className="text-2xl font-bold text-slate-900 mb-2">Comencemos la gestión.</h3>
                       <p className="text-muted-foreground font-medium max-w-sm mx-auto leading-relaxed mb-10">
-                        Tu panel de control está vacío. Sincronizá tu base de datos mediante un archivo Excel para activar las métricas y automatizaciones.
+                        Tu panel de control está vacío. Sincronizá tu base de datos mediante un archivo Excel para activar las métricas y los recordatorios.
                       </p>
                       <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
                         <button
-                          onClick={() => setActiveView('config')}
+                          onClick={() => confirmLeave(() => setActiveView('config'))}
                           className="flex-1 h-14 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl"
                         >
                           Ir a centro de carga
                         </button>
                         <button
-                          onClick={() => {
-                            setClientToEdit(null);
-                            setIsDialogOpen(true);
-                          }}
+                          onClick={() => openEdit(null)}
                           className="flex-1 h-14 rounded-2xl bg-white border border-border text-slate-900 font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all shadow-md"
                         >
                           Alta Manual
@@ -354,7 +609,7 @@ const Index = () => {
 
               {activeView === 'clientes' && (
                 <div className="space-y-6">
-                  <div className="flex flex-col lg:flex-row gap-4 mb-8 bg-card border border-border p-5 rounded-3xl shadow-sm">
+                  <div className="flex flex-col lg:flex-row gap-4 mb-6 md:mb-8 bg-card border border-border p-4 md:p-5 rounded-3xl shadow-sm">
                     <div className="relative flex-1">
                       <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
                       <Input
@@ -365,9 +620,9 @@ const Index = () => {
                       />
                     </div>
 
-                    <div className="flex flex-wrap gap-3">
+                    <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-3">
                       <Select value={platformFilter} onValueChange={setPlatformFilter}>
-                        <SelectTrigger className="w-[180px] h-14 rounded-2xl bg-secondary/30 border-none font-semibold">
+                        <SelectTrigger className="w-full sm:w-[180px] h-14 rounded-2xl bg-secondary/30 border-none font-semibold">
                           <SelectValue placeholder="Plataforma" />
                         </SelectTrigger>
                         <SelectContent className="rounded-2xl">
@@ -379,7 +634,7 @@ const Index = () => {
                       </Select>
 
                       <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="w-[180px] h-14 rounded-2xl bg-secondary/30 border-none font-semibold">
+                        <SelectTrigger className="w-full sm:w-[180px] h-14 rounded-2xl bg-secondary/30 border-none font-semibold">
                           <SelectValue placeholder="Estado" />
                         </SelectTrigger>
                         <SelectContent className="rounded-2xl">
@@ -391,7 +646,7 @@ const Index = () => {
                       </Select>
 
                       <Select value={sortConfig} onValueChange={(v: any) => setSortConfig(v)}>
-                        <SelectTrigger className="w-[180px] h-14 rounded-2xl bg-secondary/30 border-none font-semibold">
+                        <SelectTrigger className="w-full sm:w-[180px] h-14 rounded-2xl bg-secondary/30 border-none font-semibold">
                           <Search className="w-4 h-4 mr-2 text-muted-foreground/50" />
                           <SelectValue placeholder="Ordenar por monto" />
                         </SelectTrigger>
@@ -403,182 +658,40 @@ const Index = () => {
                     </div>
                   </div>
 
-                  <ClientTable
-                    clients={filteredClients}
-                    onSendMessage={handleSendMessage}
-                    onEdit={(client) => {
-                      setClientToEdit(client);
-                      setIsDialogOpen(true);
-                    }}
-                    onDelete={handleDeleteClient}
-                  />
+                  <ClientTable clients={filteredClients} {...tableActions} />
                 </div>
               )}
 
               {activeView === 'mensajes' && (
-                <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-700">
-                  <Tabs defaultValue="regular" className="w-full">
-                    <div className="flex flex-col md:flex-row md:items-center justify-end gap-6 mb-10">
-                      <TabsList className="bg-secondary/40 backdrop-blur-md p-1.5 rounded-2xl border border-white/40 h-auto self-start">
-                        <TabsTrigger value="regular" className="px-6 py-2.5 rounded-xl font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-lg">Recordatorios</TabsTrigger>
-                        <TabsTrigger value="expired" className="px-6 py-2.5 rounded-xl font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-rose-600 data-[state=active]:shadow-lg">Vencidos</TabsTrigger>
-                        <TabsTrigger value="lost" className="px-6 py-2.5 rounded-xl font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-orange-600 data-[state=active]:shadow-lg">Recuperación</TabsTrigger>
-                      </TabsList>
-                    </div>
+                <MessagesView
+                  clients={clients}
+                  templates={settings.templates}
+                  cobro={settings.cobro}
+                  onSaveTemplate={handleSaveTemplate}
+                  onSent={handleMessageSent}
+                  onRegisterPayment={setPaymentClient}
+                  onOpenClient={(client) => setSheetClientId(client.id)}
+                />
+              )}
 
-                    <TabsContent value="regular" className="grid grid-cols-1 lg:grid-cols-3 gap-8 outline-none">
-                      <div className="lg:col-span-2 space-y-6">
-                        <div className="bg-card rounded-[2rem] border border-border/60 shadow-xl p-12 space-y-24 -mt-12">
-                          <div className="space-y-8">
-                            <h4 className="text-[13px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-primary" />Proximo a vencer (3 días)
-                            </h4>
-                            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 border border-border/40 font-medium leading-relaxed italic text-slate-700 dark:text-slate-300 whitespace-pre-line">
-                              {"Hola Quería recordarte que en 3 dias  vence tu suscripción ⚠️\n¿Vas a querer renovar? \n\nDebe abonar 💰[Total]\n\ncbu : 0000003100092533873855\ny alias : Santi.abenel"}
-                            </div>
-                          </div>
-
-                          <div className="space-y-6">
-                            <h4 className="text-[13px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-primary" />Vencen hoy
-                            </h4>
-                            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 border border-border/40 font-medium leading-relaxed italic text-slate-700 dark:text-slate-300 whitespace-pre-line">
-                              {"Hola Quería recordarte que hoy vence tu suscripción ⚠️\n¿Vas a querer renovar? \n\nDebe abonar hoy! 💰[Total]\n\ncbu : 0000003100092533873855\ny alias : Santi.abenel"}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="lg:col-span-1 space-y-6">
-                        <div className="bg-slate-900 rounded-[2rem] p-8 text-white shadow-2xl relative overflow-hidden group">
-                          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform duration-700">
-                            <Activity size={100} strokeWidth={1} />
-                          </div>
-                          <h4 className="text-2xl font-black italic uppercase tracking-tighter mb-4">Envio de mensajes</h4>
-                          <p className="text-slate-400 text-[11px] font-medium leading-relaxed mb-12">
-                            Envío automático para clientes que hoy se les termina su plan o está próximo a vencer
-                          </p>
-
-                          <div className="space-y-3 mb-8">
-                            <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-500">
-                              <span>Usuarios alcanzados</span>
-                              <span className="text-white">{clients.filter(c => Number(c.dias) === 0 || Number(c.dias) === 3).length} Clientes</span>
-                            </div>
-                            <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
-                              <div className="h-full bg-primary w-[75%] rounded-full shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
-                            </div>
-                          </div>
-
-                          <button
-                            disabled={wppStatus !== 'connected'}
-                            onClick={async () => {
-                              if (!user) return;
-                              try {
-                                const result = await triggerReminders(user.id, 'regular');
-                                toast.success('Campaña Ejecutada', {
-                                  description: `Se han despachado ${result?.expiry_sent + result?.reminders_sent} mensajes.`,
-                                });
-                                await loadClients();
-                              } catch {
-                                toast.error('Error al enviar campaña');
-                              }
-                            }}
-                            className="w-full h-14 rounded-2xl bg-primary text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:shadow-[0_0_25px_rgba(34,197,94,0.4)] transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:active:scale-100"
-                          >
-                            {wppStatus !== 'connected' ? 'Bot Desconectado' : 'Iniciar Automatización'}
-                          </button>
-                        </div>
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="expired" className="space-y-8 outline-none animate-in-slide">
-                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <div className="lg:col-span-2 bg-card rounded-[2rem] border border-rose-100 shadow-xl p-8 space-y-6 text-slate-800">
-                          <h4 className="text-[13px] font-black uppercase tracking-[0.2em] text-rose-500 flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-rose-500" /> Clientes vencidos (1-30 días)
-                          </h4>
-                          <div className="bg-rose-50/30 rounded-2xl p-8 border border-rose-500/10 font-medium leading-relaxed italic text-rose-950 border-l-rose-500 border-l-4 shadow-inner whitespace-pre-line">
-                            {"Hola \nTú suscripción ya está vencida ⚠️\n\nVimos que aún no abonaste tu servicio, vas a querer renovar o procedemos con la baja? ❌\n\nMuchas gracias!"}
-                          </div>
-                        </div>
-
-                        <div className="lg:col-span-1">
-                          <div className="bg-white rounded-[2rem] border border-border shadow-lg p-8 h-full flex flex-col justify-between">
-                            <div className="space-y-4">
-                              <h5 className="text-lg font-bold leading-snug">Reactivando planes</h5>
-                              <p className="text-[11px] text-muted-foreground leading-relaxed">Notificá a los clientes que se les terminó el plan hace poco tiempo.</p>
-                              <div className="pt-4">
-                                <div className="inline-block px-3 py-1 rounded-full bg-rose-100 text-rose-600 font-black text-[9px] uppercase tracking-tighter">
-                                  {clients.filter(c => Number(c.dias) < 0 && Number(c.dias) >= -30).length}  --  Usuarios encontrados
-                                </div>
-                              </div>
-                            </div>
-
-                            <button
-                              disabled={wppStatus !== 'connected'}
-                              onClick={async () => {
-                                if (!user) return;
-                                try {
-                                  const result = await triggerReminders(user.id, 'expired');
-                                  toast.success('Cobranza Masiva Ejecutada', {
-                                    description: `Se han notificado a ${result?.expired_sent || 0} deudores.`
-                                  });
-                                  await loadClients();
-                                } catch {
-                                  toast.error('Error al ejecutar proceso');
-                                }
-                              }}
-                              className="w-full h-14 rounded-2xl bg-rose-600 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-rose-700 transition-all shadow-xl shadow-rose-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-rose-600 disabled:active:scale-100"
-                            >
-                              {wppStatus !== 'connected' ? 'Bot Desconectado' : 'Iniciar automatización'}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="lost" className="space-y-8 outline-none animate-in-slide">
-                      <div className="bg-white rounded-[2rem] border border-border/60 shadow-xl p-12 flex flex-col space-y-8 items-start">
-                        <h4 className="text-lg font-black uppercase tracking-widest text-blue-900 mb-4">RECUPERACIÓN DE CLIENTES</h4>
-                        <p className="text-base text-slate-700 font-medium leading-relaxed mb-6">Intentá recuperar clientes que no renuevan hace más de 30 días.<br/>Tu base de datos tiene <span className="font-black text-blue-900">{clients.filter(c => Number(c.dias) < -30).length} clientes</span> que no renueva su plan hace bastante.</p>
-
-                        <div className="bg-slate-50 p-6 rounded-2xl border border-border/40 w-full text-slate-700 text-base font-medium whitespace-pre-line">
-                          {"Hola 👋🏼\nNotamos que no renovas tu suscripción hace un tiempo⚠️\nTe ofrecemos la oportunidad de reincorporarte con un 10% de descuento en cualquier plataforma que elijas 😁"}
-                        </div>
-
-                        <button
-                          disabled={wppStatus !== 'connected'}
-                          onClick={async () => {
-                            if (!user) return;
-                            try {
-                              const result = await triggerReminders(user.id, 'lost');
-                              toast.success('Campaña de Reconquista', {
-                                description: `Mensajes enviados a ${result?.lost_sent || 0} ex-clientes.`,
-                              });
-                              await loadClients();
-                            } catch {
-                              toast.error('Error al iniciar campaña');
-                            }
-                          }}
-                          className="w-full h-14 rounded-2xl bg-blue-900 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:shadow-[0_0_25px_rgba(30,58,138,0.4)] transition-all active:scale-95 mt-6 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:active:scale-100"
-                        >
-                          {wppStatus !== 'connected' ? 'Bot Desconectado' : 'Iniciar automatización'}
-                        </button>
-                      </div>
-                    </TabsContent>
-                  </Tabs>
-                </div>
+              {activeView === 'plataformas' && (
+                <PlansView
+                  clients={clients}
+                  plans={settings.planes}
+                  onSave={handleSavePlans}
+                  onNotify={setIncreaseQueue}
+                />
               )}
 
               {activeView === 'config' && (
                 <div className="animate-in-slide">
-                  <ConfigView userId={user.id} onDataUpdate={loadClients} />
+                  <ConfigView userId={workspaceId} onDataUpdate={loadClients} cobro={settings.cobro} onSaveCobro={handleSaveCobro} currentEmail={user.email} />
                 </div>
               )}
 
               {activeView === 'upload' && (
-                <div className="max-w-2xl mx-auto pt-10 animate-in-slide">
-                  <ExcelUpload userId={user.id} onImport={handleImport} />
+                <div className="max-w-2xl mx-auto pt-4 md:pt-10 animate-in-slide">
+                  <ExcelUpload userId={workspaceId} onImport={handleImport} />
                 </div>
               )}
             </motion.div>
@@ -588,7 +701,55 @@ const Index = () => {
 
       <AnimatePresence>
         {selectedClient && (
-          <MessagePreview client={selectedClient} onClose={() => setSelectedClient(null)} />
+          <MessagePreview
+            client={selectedClient}
+            templates={settings.templates}
+            cobro={settings.cobro}
+            onSent={handleMessageSent}
+            onClose={() => setSelectedClient(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {sheetClient && (
+          <ClientSheet
+            client={sheetClient}
+            userId={workspaceId}
+            payments={payments.filter(p => p.client_id === sheetClient.id)}
+            templates={settings.templates}
+            cobro={settings.cobro}
+            onClose={() => setSheetClientId(null)}
+            onEdit={openEdit}
+            onRegisterPayment={setPaymentClient}
+            onSent={handleMessageSent}
+            onToggleBaja={handleToggleBaja}
+          />
+        )}
+      </AnimatePresence>
+
+      {increaseQueue && (
+        <SendQueue
+          title="Aviso de aumento de precio"
+          clients={increaseQueue}
+          templates={settings.templates}
+          cobro={settings.cobro}
+          templateKey="increase"
+          onSent={handleMessageSent}
+          onClose={() => setIncreaseQueue(null)}
+        />
+      )}
+
+      <AnimatePresence>
+        {paymentClient && (
+          <PaymentDialog
+            client={paymentClient}
+            templates={settings.templates}
+            cobro={settings.cobro}
+            onClose={() => setPaymentClient(null)}
+            onConfirm={handleRegisterPayment}
+            onNotified={(client) => handleMessageSent(client, 'paid')}
+          />
         )}
       </AnimatePresence>
 
@@ -596,6 +757,7 @@ const Index = () => {
         {isDialogOpen && (
           <ClientDialog
             client={clientToEdit}
+            plans={settings.planes}
             onClose={() => setIsDialogOpen(false)}
             onSave={handleSaveClient}
           />
@@ -604,5 +766,12 @@ const Index = () => {
     </div>
   );
 };
+
+/** La página completa, con el aviso de cambios sin guardar disponible para todas las pantallas. */
+const Index = () => (
+  <UnsavedChangesProvider>
+    <IndexPage />
+  </UnsavedChangesProvider>
+);
 
 export default Index;

@@ -16,13 +16,9 @@ build/
 .env
 .env.local
 .env.*.local
-.env.example
 
-# WhatsApp session
-.wwebjs_auth/
-.wwebjs_cache/
-bot-whatsapp/.wwebjs_auth/
-bot-whatsapp/.wwebjs_cache/
+# Supabase CLI
+supabase/.temp/
 
 # Debug logs
 *.txt

@@ -1,1 +1,5 @@
-project_id = "spdyopkrocccpgeigsyb"
+project_id = "pmrqctvcmkgyijrqsuff"
+# La función valida ella misma la sesión de quien llama (auth.getUser). La verificación de JWT del
+# gateway no es compatible con las claves nuevas del proyecto (sb_publishable_...) y responde 401.
+[functions.manage-user]
+verify_jwt = false

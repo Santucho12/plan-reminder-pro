@@ -35,7 +35,7 @@ const SummaryCards = ({ clients, payments = [], onUndoPayment }: SummaryCardsPro
 
   const cards = [
     {
-      title: "Clientes Activos",
+      title: "Activos",
       value: stats.activos,
       detail: "Con el plan vigente",
       icon: Users,
@@ -55,7 +55,7 @@ const SummaryCards = ({ clients, payments = [], onUndoPayment }: SummaryCardsPro
       accentColor: "bg-rose-600"
     },
     {
-      title: "Próximos a vencerse",
+      title: "Por vencer",
       value: stats.porVencer,
       detail: "En 1 a 3 días",
       icon: Clock,
@@ -93,14 +93,14 @@ const SummaryCards = ({ clients, payments = [], onUndoPayment }: SummaryCardsPro
             variants={item}
             className={`
               relative overflow-hidden rounded-xl border ${card.borderColor}
-              bg-white p-4 md:p-6 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]
+              bg-white p-4 md:p-6 flex flex-col shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]
               hover:shadow-xl hover:shadow-slate-200/50
               transition-all duration-300
             `}
           >
-            <div className="flex justify-between items-start relative z-10">
-              <div className="space-y-1">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+            <div className="flex justify-between items-start gap-2 relative z-10">
+              <div className="space-y-1 min-w-0">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">
                   {card.title}
                 </p>
                 <div className="flex items-center gap-2">
@@ -109,15 +109,17 @@ const SummaryCards = ({ clients, payments = [], onUndoPayment }: SummaryCardsPro
                   </h3>
                 </div>
               </div>
-              <div className={`rounded-lg p-2 ${card.color} ${card.iconColor} border ${card.borderColor}`}>
+              <div className={`shrink-0 rounded-lg p-1.5 md:p-2 ${card.color} ${card.iconColor} border ${card.borderColor}`}>
                 <card.icon size={18} />
               </div>
             </div>
 
             {/* Minimalist Bottom Indicator */}
-            <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between gap-2">
-              <span title={card.detail} className="text-[9px] font-bold text-slate-400 uppercase truncate">{card.detail}</span>
+            <div className="mt-auto pt-4">
+            <div className="pt-3 md:pt-4 border-t border-slate-50 flex items-center justify-between gap-2">
+              <span className="text-[9px] font-bold text-slate-400 uppercase leading-snug">{card.detail}</span>
               <div className={`h-1.5 w-1.5 shrink-0 rounded-full ${card.accentColor}`} />
+            </div>
             </div>
           </motion.div>
         ))}

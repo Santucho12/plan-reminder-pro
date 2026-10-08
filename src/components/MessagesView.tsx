@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { differenceInCalendarDays, isToday } from 'date-fns';
 import { Activity, Clock, AlertCircle, RotateCcw, MessageCircle, CheckCircle2, HandCoins, Send, FileText, Pencil, ListOrdered } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { scrollToTop } from '@/lib/smoothScroll';
 import EditableMessage from '@/components/EditableMessage';
 import SendQueue from '@/components/SendQueue';
 import { useConfirmLeave } from '@/hooks/useUnsavedChanges';
@@ -68,10 +69,16 @@ const MessagesView = ({ clients, templates = DEFAULT_TEMPLATES, cobro = DEFAULT_
       .filter(c => getSegment(c) === id)
       .sort((a, b) => Number(b.dias) - Number(a.dias));
 
+  /** Cambia entre Envíos y Plantillas arrancando desde arriba. */
+  const changeMode = (next: typeof mode) => {
+    setMode(next);
+    scrollToTop();
+  };
+
   const modeButton = (id: typeof mode, label: string, Icon: typeof Send) => (
     <button
       type="button"
-      onClick={() => { if (id !== mode) confirmLeave(() => setMode(id)); }}
+      onClick={() => { if (id !== mode) confirmLeave(() => changeMode(id)); }}
       aria-pressed={mode === id}
       className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
         mode === id ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-muted-foreground hover:text-foreground'
@@ -112,11 +119,11 @@ const MessagesView = ({ clients, templates = DEFAULT_TEMPLATES, cobro = DEFAULT_
 
       {mode === 'send' && (
         <Tabs defaultValue="today" className="w-full">
-          <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0 mb-6 md:mb-8">
-            <TabsList className="bg-secondary/40 backdrop-blur-md p-1.5 rounded-2xl border border-white/40 h-auto w-max">
+          <div className="mb-5 md:mb-8">
+            <TabsList className="bg-secondary/40 backdrop-blur-md p-1.5 rounded-2xl border border-white/40 h-auto w-full sm:w-max grid grid-cols-2 gap-1 sm:flex sm:gap-0">
               {segments.map(({ id, label, icon: Icon }) => (
-                <TabsTrigger key={id} value={id} className="px-4 md:px-6 py-2.5 rounded-xl font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-lg">
-                  <Icon className="w-4 h-4 mr-2" />
+                <TabsTrigger key={id} value={id} className="px-3 md:px-6 py-2.5 rounded-xl text-[13px] sm:text-sm font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-lg">
+                  <Icon className="w-4 h-4 mr-1.5 sm:mr-2 shrink-0" />
                   {label}
                   <span className="ml-2 px-2 py-0.5 rounded-full bg-secondary text-[10px] font-black">{bySegment(id).length}</span>
                 </TabsTrigger>
@@ -129,9 +136,9 @@ const MessagesView = ({ clients, templates = DEFAULT_TEMPLATES, cobro = DEFAULT_
             const pending = all.filter(c => !sentToday(c));
             const list = hideSent ? pending : all;
             return (
-              <TabsContent key={id} value={id} className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 outline-none animate-in-slide">
-                <div className="lg:col-span-1">
-                  <div className="bg-card rounded-[2rem] border border-border/60 shadow-xl p-6 md:p-8 space-y-6">
+              <TabsContent key={id} value={id} className="grid grid-cols-1 lg:grid-cols-3 gap-5 md:gap-8 outline-none animate-in-slide">
+                <div className="order-2 lg:order-none lg:col-span-1">
+                  <div className="bg-card rounded-3xl md:rounded-[2rem] border border-border/60 shadow-xl p-5 md:p-8 space-y-5 md:space-y-6">
                     <div className="space-y-2">
                       <h4 className="text-[13px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-primary" />{title}
@@ -148,7 +155,7 @@ const MessagesView = ({ clients, templates = DEFAULT_TEMPLATES, cobro = DEFAULT_
                       </p>
                       <button
                         type="button"
-                        onClick={() => confirmLeave(() => setMode('templates'))}
+                        onClick={() => confirmLeave(() => changeMode('templates'))}
                         className="shrink-0 h-9 px-3 rounded-xl text-xs font-bold text-primary bg-primary/10 hover:bg-primary/15 transition-colors flex items-center gap-1.5"
                       >
                         <Pencil size={13} /> Editar en Plantillas
@@ -157,17 +164,17 @@ const MessagesView = ({ clients, templates = DEFAULT_TEMPLATES, cobro = DEFAULT_
                   </div>
                 </div>
 
-                <div className="lg:col-span-2">
-                  <div className="bg-card rounded-[2rem] border border-border/60 shadow-xl overflow-hidden">
-                    <div className="px-5 md:px-6 py-5 border-b border-border bg-secondary/20 flex flex-wrap items-center justify-between gap-3">
+                <div className="order-1 lg:order-none lg:col-span-2">
+                  <div className="bg-card rounded-3xl md:rounded-[2rem] border border-border/60 shadow-xl overflow-hidden">
+                    <div className="px-4 md:px-6 py-4 md:py-5 border-b border-border bg-secondary/20 flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <h2 className="text-base font-bold tracking-tight uppercase text-muted-foreground/80">Clientes a contactar</h2>
-                        <span className="px-2 py-1 bg-secondary rounded-md text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+                        <h2 className="text-sm md:text-base font-bold tracking-tight uppercase text-muted-foreground/80">Clientes a contactar</h2>
+                        <span className="px-2 py-1 bg-secondary rounded-md text-[10px] md:text-xs font-semibold tracking-widest text-muted-foreground uppercase whitespace-nowrap">
                           {list.length} Clientes
                         </span>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-2 text-xs font-semibold text-muted-foreground cursor-pointer select-none">
+                      <div className="flex flex-col-reverse items-stretch sm:flex-row sm:items-center gap-3">
+                        <label className="flex items-center gap-2 text-xs font-semibold text-muted-foreground cursor-pointer select-none whitespace-nowrap">
                           <input type="checkbox" checked={hideSent} onChange={(e) => setHideSent(e.target.checked)} className="rounded border-border" />
                           Ocultar enviados hoy
                         </label>
@@ -175,7 +182,7 @@ const MessagesView = ({ clients, templates = DEFAULT_TEMPLATES, cobro = DEFAULT_
                           type="button"
                           onClick={() => setQueue({ title, clients: pending })}
                           disabled={pending.length === 0}
-                          className="h-10 px-4 rounded-xl bg-[#25D366] text-white text-sm font-bold shadow-md shadow-[#25D366]/25 hover:bg-[#1fbd5b] active:scale-95 transition-all flex items-center gap-2 disabled:opacity-40 disabled:pointer-events-none"
+                          className="h-11 sm:h-10 px-4 rounded-xl bg-[#25D366] text-white text-sm font-bold shadow-md shadow-[#25D366]/25 hover:bg-[#1fbd5b] active:scale-95 transition-all flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-40 disabled:pointer-events-none"
                         >
                           <ListOrdered size={16} /> Enviar en cola ({pending.length})
                         </button>
@@ -191,7 +198,7 @@ const MessagesView = ({ clients, templates = DEFAULT_TEMPLATES, cobro = DEFAULT_
                         {list.map(client => {
                           const url = buildWhatsAppUrl(client, buildWhatsAppMessage(client, templates, cobro));
                           return (
-                            <li key={client.id} className="px-4 md:px-5 py-2.5 flex items-center gap-2.5 md:gap-3 hover:bg-secondary/40 transition-colors">
+                            <li key={client.id} className="px-4 md:px-5 py-3 sm:py-2.5 flex items-center gap-2.5 md:gap-3 hover:bg-secondary/40 transition-colors">
                               <div className="w-7 h-7 shrink-0 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[11px] uppercase">
                                 {client.nombre.charAt(0)}
                               </div>
@@ -225,7 +232,7 @@ const MessagesView = ({ clients, templates = DEFAULT_TEMPLATES, cobro = DEFAULT_
                                   onClick={() => onRegisterPayment(client)}
                                   title="Registrar pago"
                                   aria-label={`Registrar pago de ${client.nombre}`}
-                                  className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-[11px] font-bold hover:bg-emerald-100 hover:border-emerald-300 active:scale-95 transition-all whitespace-nowrap"
+                                  className="inline-flex items-center justify-center gap-1 h-9 min-w-9 sm:h-7 px-2.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-[11px] font-bold hover:bg-emerald-100 hover:border-emerald-300 active:scale-95 transition-all whitespace-nowrap"
                                 >
                                   <HandCoins size={13} /> <span className="hidden sm:inline">Pagó</span>
                                 </button>
@@ -236,10 +243,11 @@ const MessagesView = ({ clients, templates = DEFAULT_TEMPLATES, cobro = DEFAULT_
                                   target="_blank"
                                   rel="noreferrer"
                                   onClick={() => onSent?.(client)}
-                                  className="inline-flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-bold uppercase tracking-wider bg-[#25D366] text-white shadow-md shadow-[#25D366]/20 hover:shadow-[#25D366]/30 active:scale-95 transition-all duration-200"
+                                  aria-label={`WhatsApp a ${client.nombre}`}
+                                  className="inline-flex items-center justify-center gap-1.5 h-9 min-w-9 sm:h-7 px-2.5 sm:px-3 rounded-lg text-[11px] font-bold uppercase tracking-wider bg-[#25D366] text-white shadow-md shadow-[#25D366]/20 hover:shadow-[#25D366]/30 active:scale-95 transition-all duration-200"
                                 >
-                                  <MessageCircle size={13} />
-                                  WhatsApp
+                                  <MessageCircle size={15} className="sm:w-[13px] sm:h-[13px]" />
+                                  <span className="hidden sm:inline">WhatsApp</span>
                                 </a>
                               ) : (
                                 <span className="inline-flex items-center h-7 px-3 rounded-lg text-[11px] font-bold uppercase tracking-wider bg-secondary text-muted-foreground whitespace-nowrap">

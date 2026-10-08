@@ -89,6 +89,13 @@
     @apply border-border;
   }
 
+  /* Sin zoom en el celular: ni por doble toque ni al agrandar el texto */
+  html {
+    touch-action: manipulation;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;

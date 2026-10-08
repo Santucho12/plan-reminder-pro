@@ -22,7 +22,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Client, CobroData, Payment, Plan } from '@/types/client';
-import { Download, Search, Activity, Clock, UserPlus, FileSpreadsheet, AlertTriangle } from 'lucide-react';
+import { ArrowUpDown, Download, Search, Activity, Clock, UserPlus, FileSpreadsheet, AlertTriangle } from 'lucide-react';
+import { scrollToTop } from '@/lib/smoothScroll';
 import {
   addClientEvent,
   createClient,
@@ -113,6 +114,11 @@ const IndexPage = () => {
       });
     return () => { cancelled = true; };
   }, [userId]);
+
+  // Cada pantalla arranca desde arriba (si no, al cambiar de módulo queda el scroll de la anterior)
+  useEffect(() => {
+    scrollToTop();
+  }, [activeView]);
 
   const loadClients = useCallback(async () => {
     if (!workspaceId) return;
@@ -449,14 +455,14 @@ const IndexPage = () => {
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => exportClientsToExcel(clients)}
-                        className="flex-1 lg:flex-none px-4 md:px-6 h-12 rounded-2xl bg-emerald-600 text-white font-bold text-xs md:text-sm uppercase tracking-widest shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/30 active:scale-95 transition-all flex items-center justify-center gap-2 md:gap-3"
+                        className="flex-1 lg:flex-none px-4 md:px-6 h-11 md:h-12 rounded-2xl bg-emerald-600 text-white font-bold text-sm md:uppercase md:tracking-widest whitespace-nowrap shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/30 active:scale-95 transition-all flex items-center justify-center gap-2 md:gap-3"
                       >
                         <FileSpreadsheet size={18} />
                         Exportar Excel
                       </button>
                       <button
                         onClick={() => openEdit(null)}
-                        className="flex-1 lg:flex-none px-4 md:px-6 h-12 rounded-2xl bg-primary text-white font-bold text-xs md:text-sm uppercase tracking-widest shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-95 transition-all flex items-center justify-center gap-2 md:gap-3"
+                        className="flex-1 lg:flex-none px-4 md:px-6 h-11 md:h-12 rounded-2xl bg-primary text-white font-bold text-sm md:uppercase md:tracking-widest whitespace-nowrap shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-95 transition-all flex items-center justify-center gap-2 md:gap-3"
                       >
                         <UserPlus size={18} />
                         Nuevo Cliente
@@ -547,7 +553,7 @@ const IndexPage = () => {
                             <TabsList className="bg-secondary/40 backdrop-blur-md p-1.5 rounded-2xl border border-white/40 h-auto w-full md:w-auto">
                               <TabsTrigger value="today" className="flex-1 md:flex-none px-3 md:px-8 py-2.5 rounded-xl font-bold transition-all data-[state=active]:bg-white data-[state=active]:shadow-lg">
                                 <Activity className="w-4 h-4 mr-2" />
-                                Vencen Hoy
+                                Vencen hoy
                               </TabsTrigger>
                               <TabsTrigger value="soon" className="flex-1 md:flex-none px-3 md:px-8 py-2.5 rounded-xl font-bold transition-all data-[state=active]:bg-white data-[state=active]:shadow-lg">
                                 <Clock className="w-4 h-4 mr-2" />
@@ -609,20 +615,20 @@ const IndexPage = () => {
 
               {activeView === 'clientes' && (
                 <div className="space-y-6">
-                  <div className="flex flex-col lg:flex-row gap-4 mb-6 md:mb-8 bg-card border border-border p-4 md:p-5 rounded-3xl shadow-sm">
+                  <div className="flex flex-col lg:flex-row gap-3 md:gap-4 mb-4 md:mb-8 bg-card border border-border p-3 md:p-5 rounded-2xl md:rounded-3xl shadow-sm">
                     <div className="relative flex-1">
                       <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
                       <Input
                         placeholder="Buscar por nombre..."
-                        className="pl-12 h-14 rounded-2xl border-none bg-secondary/30 text-base font-medium focus-visible:ring-primary/20 transition-all"
+                        className="pl-12 h-12 md:h-14 rounded-xl md:rounded-2xl border-none bg-secondary/30 text-base font-medium focus-visible:ring-primary/20 transition-all"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                       />
                     </div>
 
-                    <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-3">
+                    <div className="grid grid-cols-[1.3fr_1fr_1fr] sm:flex sm:flex-wrap gap-2 md:gap-3">
                       <Select value={platformFilter} onValueChange={setPlatformFilter}>
-                        <SelectTrigger className="w-full sm:w-[180px] h-14 rounded-2xl bg-secondary/30 border-none font-semibold">
+                        <SelectTrigger className="w-full sm:w-[180px] h-11 md:h-14 px-3 md:px-4 rounded-xl md:rounded-2xl bg-secondary/30 border-none text-xs md:text-sm font-semibold [&>span]:truncate">
                           <SelectValue placeholder="Plataforma" />
                         </SelectTrigger>
                         <SelectContent className="rounded-2xl">
@@ -634,7 +640,7 @@ const IndexPage = () => {
                       </Select>
 
                       <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="w-full sm:w-[180px] h-14 rounded-2xl bg-secondary/30 border-none font-semibold">
+                        <SelectTrigger className="w-full sm:w-[180px] h-11 md:h-14 px-3 md:px-4 rounded-xl md:rounded-2xl bg-secondary/30 border-none text-xs md:text-sm font-semibold [&>span]:truncate">
                           <SelectValue placeholder="Estado" />
                         </SelectTrigger>
                         <SelectContent className="rounded-2xl">
@@ -646,9 +652,11 @@ const IndexPage = () => {
                       </Select>
 
                       <Select value={sortConfig} onValueChange={(v: any) => setSortConfig(v)}>
-                        <SelectTrigger className="w-full sm:w-[180px] h-14 rounded-2xl bg-secondary/30 border-none font-semibold">
-                          <Search className="w-4 h-4 mr-2 text-muted-foreground/50" />
-                          <SelectValue placeholder="Ordenar por monto" />
+                        <SelectTrigger className="w-full sm:w-[180px] h-11 md:h-14 px-3 md:px-4 rounded-xl md:rounded-2xl bg-secondary/30 border-none text-xs md:text-sm font-semibold [&>span]:truncate">
+                          <ArrowUpDown className="hidden min-[380px]:block w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0 text-muted-foreground/60" />
+                          {/* En el celular no entra "Mayor monto": se muestra abreviado */}
+                          <div className="sm:hidden truncate">{sortConfig === 'total-desc' ? 'Mayor $' : 'Menor $'}</div>
+                          <div className="hidden sm:block truncate"><SelectValue placeholder="Ordenar por monto" /></div>
                         </SelectTrigger>
                         <SelectContent className="rounded-2xl">
                           <SelectItem value="total-desc">Mayor monto</SelectItem>

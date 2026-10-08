@@ -104,25 +104,26 @@ const ClientTable = ({ clients, onSendMessage, onEdit, onDelete, onRegisterPayme
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 min-[380px]:gap-2">
               <button
                 type="button"
                 onClick={() => onSendMessage?.(client)}
-                className="flex-1 inline-flex items-center justify-center gap-2 h-11 rounded-xl text-xs font-bold uppercase tracking-wider bg-primary text-white active:scale-95 transition-all"
+                className="flex-1 min-w-0 inline-flex items-center justify-center gap-1.5 h-11 px-2 rounded-xl text-[13px] min-[380px]:text-sm font-bold bg-primary text-white active:scale-95 transition-all"
               >
-                <Send size={14} /> WhatsApp
+                <Send size={15} /> WhatsApp
               </button>
               <button
                 type="button"
                 onClick={() => onRegisterPayment?.(client)}
-                className="flex-1 inline-flex items-center justify-center gap-2 h-11 rounded-xl text-xs font-bold uppercase tracking-wider bg-emerald-600 text-white active:scale-95 transition-all"
+                aria-label={`Registrar pago de ${client.nombre}`}
+                className="flex-1 min-w-0 inline-flex items-center justify-center gap-1.5 h-11 px-2 rounded-xl text-[13px] min-[380px]:text-sm font-bold bg-emerald-600 text-white active:scale-95 transition-all"
               >
-                <HandCoins size={16} /> Registrar pago
+                <HandCoins size={16} /> Pagó
               </button>
-              <button type="button" onClick={() => onEdit?.(client)} title="Editar" className="h-11 w-11 shrink-0 rounded-xl bg-secondary text-slate-500 flex items-center justify-center">
+              <button type="button" onClick={() => onEdit?.(client)} title="Editar" aria-label={`Editar ${client.nombre}`} className="h-11 w-10 min-[380px]:w-11 shrink-0 rounded-xl bg-secondary text-slate-500 flex items-center justify-center">
                 <Pencil size={16} />
               </button>
-              <button type="button" onClick={() => onDelete?.(client.id)} title="Eliminar" className="h-11 w-11 shrink-0 rounded-xl bg-secondary text-slate-500 flex items-center justify-center">
+              <button type="button" onClick={() => onDelete?.(client.id)} title="Eliminar" aria-label={`Eliminar ${client.nombre}`} className="h-11 w-10 min-[380px]:w-11 shrink-0 rounded-xl bg-secondary text-slate-500 flex items-center justify-center">
                 <Trash2 size={16} />
               </button>
             </div>
@@ -194,9 +195,13 @@ const ClientTable = ({ clients, onSendMessage, onEdit, onDelete, onRegisterPayme
                       </div>
                     </td>
                     <td className="hidden lg:table-cell px-3 py-2.5">
-                      <span className="text-xs font-mono font-medium text-muted-foreground bg-secondary/50 px-2 py-1 rounded-md">
-                        {client.celular}
-                      </span>
+                      {client.celular ? (
+                        <span className="text-xs font-mono font-medium text-muted-foreground bg-secondary/50 px-2 py-1 rounded-md">
+                          {client.celular}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/70 italic">Sin número</span>
+                      )}
                     </td>
                     <td className="hidden lg:table-cell px-3 py-2.5 max-w-[170px] align-middle">
                       <div className="flex items-center gap-1.5">

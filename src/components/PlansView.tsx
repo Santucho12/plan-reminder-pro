@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Layers, Percent, Plus, Trash2, Save, MessageCircle, Package, Check, Pencil } from 'lucide-react';
 import { Client, Plan, isCombo } from '@/types/client';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -30,7 +31,7 @@ interface ComboUpdate {
 
 const key = (name: string) => name.trim().toLowerCase();
 const money = (value: number) => `$${Number(value || 0).toLocaleString('es-AR')}`;
-const inputClass = 'h-11 rounded-xl bg-secondary/40 border-none px-3 text-sm font-semibold focus:ring-2 focus:ring-primary/20';
+const inputClass = 'h-11 rounded-xl bg-secondary/40 border-none px-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/30';
 const labelClass = 'text-[10px] font-black text-muted-foreground uppercase tracking-widest';
 
 /** Precio más repetido entre los clientes de un plan (para proponerlo cuando el plan todavía no está en el catálogo). */
@@ -281,7 +282,7 @@ const PlansView = ({ clients, plans, onSave, onNotify }: PlansViewProps) => {
   const totalOutdated = rows.reduce((acc, r) => acc + outdated(r).length, 0);
 
   const priceTag = (row: Plan) => (
-    <span aria-label={`Precio de ${row.nombre}`} className="min-w-[96px] text-right text-base font-bold tabular-nums">
+    <span aria-label={`Precio de ${row.nombre}`} className="shrink-0 sm:min-w-[96px] text-right text-sm sm:text-base font-bold tabular-nums">
       {money(row.precio)}
     </span>
   );
@@ -351,8 +352,8 @@ const PlansView = ({ clients, plans, onSave, onNotify }: PlansViewProps) => {
             {platforms.map(row => {
               const inCombos = usedInCombos(row.nombre);
               return (
-                <li key={row.nombre} className="py-3 flex flex-wrap items-center gap-3">
-                  <div className="flex-1 min-w-[140px]">
+                <li key={row.nombre} className="py-3 flex items-center gap-2 sm:gap-3">
+                  <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold break-words">{row.nombre}</p>
                     <p className="text-xs text-muted-foreground">
                       {clientsLine(row)}
@@ -360,7 +361,7 @@ const PlansView = ({ clients, plans, onSave, onNotify }: PlansViewProps) => {
                     </p>
                   </div>
                   {priceTag(row)}
-                  <div className="flex items-center">
+                  <div className="flex items-center shrink-0 -mr-2">
                   {editButton(row)}
                   <button
                     type="button"
@@ -409,8 +410,8 @@ const PlansView = ({ clients, plans, onSave, onNotify }: PlansViewProps) => {
               const suma = sumOf(combo, platforms);
               const ahorro = suma > 0 ? Math.round((1 - combo.precio / suma) * 100) : 0;
               return (
-                <li key={combo.nombre} className="py-3 flex flex-wrap items-center gap-3">
-                  <div className="flex-1 min-w-[160px] space-y-1">
+                <li key={combo.nombre} className="py-3 flex items-center gap-2 sm:gap-3">
+                  <div className="flex-1 min-w-0 space-y-1">
                     <p className="text-sm font-bold break-words">{combo.nombre}</p>
                     <div className="flex flex-wrap gap-1">
                       {combo.plataformas!.map(p => (
@@ -423,7 +424,7 @@ const PlansView = ({ clients, plans, onSave, onNotify }: PlansViewProps) => {
                     </p>
                   </div>
                   {priceTag(combo)}
-                  <div className="flex items-center">
+                  <div className="flex items-center shrink-0 -mr-2">
                   {editButton(combo)}
                   <button
                     type="button"
@@ -503,7 +504,8 @@ const PlansView = ({ clients, plans, onSave, onNotify }: PlansViewProps) => {
         </div>
       )}
 
-      {dialog && (
+      {/* Las ventanas se dibujan en <body>: dentro de la pantalla animada quedaban debajo de la barra superior */}
+      {dialog && createPortal(
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in-fade">
           <form
             role="dialog"
@@ -609,7 +611,7 @@ const PlansView = ({ clients, plans, onSave, onNotify }: PlansViewProps) => {
               </button>
               <button
                 type="submit"
-                className={`flex-1 h-12 px-4 rounded-xl text-white font-bold text-[10px] uppercase tracking-widest shadow-lg flex items-center justify-center gap-2 ${
+                className={`w-full sm:w-auto sm:flex-1 h-12 shrink-0 px-4 rounded-xl text-white font-bold text-[10px] uppercase tracking-widest shadow-lg flex items-center justify-center gap-2 ${
                   dialog === 'combo' ? 'bg-violet-600 shadow-violet-600/20' : 'bg-primary shadow-primary/20'
                 }`}
               >
@@ -618,9 +620,9 @@ const PlansView = ({ clients, plans, onSave, onNotify }: PlansViewProps) => {
             </div>
           </form>
         </div>
-      )}
+      , document.body)}
 
-      {comboPrompt && (
+      {comboPrompt && createPortal(
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in-fade">
           <div role="dialog" aria-label="Actualizar combos" className="bg-card w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl border border-border p-6 space-y-5 max-h-[92vh] overflow-y-auto">
             <div>
@@ -676,7 +678,7 @@ const PlansView = ({ clients, plans, onSave, onNotify }: PlansViewProps) => {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 };

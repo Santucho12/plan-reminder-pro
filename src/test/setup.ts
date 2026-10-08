@@ -46,3 +46,6 @@ vi.mock("framer-motion", async () => {
     React.createElement(React.Fragment, null, children);
   return { motion, AnimatePresence };
 });
+
+// jsdom no implementa el scroll de la ventana
+window.scrollTo = (() => {}) as typeof window.scrollTo;

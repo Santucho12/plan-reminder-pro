@@ -176,7 +176,9 @@ const ExcelUpload = ({ onImport, userId, hideTitle }: ExcelUploadProps) => {
                 </div>
                 <div className="space-y-1">
                   <p className="text-base font-bold text-foreground">
-                    Arrastrá tu excel o hacé click para seleccionar
+                    <span className="hidden md:inline">Arrastrá tu excel o hacé click para seleccionar</span>
+                    {/* En el celular no se arrastran archivos */}
+                    <span className="md:hidden">Tocá para elegir tu Excel</span>
                   </p>
                   <p className="text-xs text-muted-foreground">Archivos .xlsx, .xls o .csv</p>
                 </div>

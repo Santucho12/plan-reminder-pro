@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Info, X } from 'lucide-react';
 
@@ -19,9 +20,9 @@ export const HELP: Record<HelpModule, HelpContent> = {
       {
         title: 'Las 4 tarjetas de arriba',
         items: [
-          'Clientes activos: todos los que tienen el plan vigente, incluidos los que vencen hoy y en los próximos días.',
+          'Activos: todos los que tienen el plan vigente, incluidos los que vencen hoy y en los próximos días.',
           'Vencen hoy: a los que hoy se les termina el plan. Son los primeros a los que hay que cobrarles.',
-          'Próximos a vencerse: vencen en 1 a 3 días.',
+          'Por vencer: vencen en 1 a 3 días.',
           'Vencidos: se les venció el plan hace 1 a 30 días; todavía se les cobra. Los que llevan más de 30 días figuran abajo como "en recuperación" y ya no cuentan como deuda.',
           'Los clientes dados de baja no cuentan en ninguna tarjeta.',
         ],
@@ -238,10 +239,12 @@ const ModuleHelp = ({ module }: { module: HelpModule }) => {
         <Info size={22} />
       </button>
 
+      {/* Se dibuja directo en <body>: dentro del encabezado animado quedaba por debajo del contenido */}
+      {createPortal(
       <AnimatePresence>
         {open && (
           <div
-            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in-fade"
+            className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/70 backdrop-blur-md animate-in-fade"
             onClick={() => setOpen(false)}
           >
             <motion.div
@@ -290,7 +293,9 @@ const ModuleHelp = ({ module }: { module: HelpModule }) => {
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body,
+      )}
     </>
   );
 };

@@ -25,7 +25,7 @@ const AppSidebar = ({ activeView, onViewChange, hasClients, onLogout }: AppSideb
   if (isMobile) {
     return (
       <>
-        <header className="fixed top-0 inset-x-0 h-14 z-50 bg-card/95 backdrop-blur border-b border-border flex items-center justify-between px-4">
+        <header className="fixed top-0 inset-x-0 h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] z-50 bg-card/95 backdrop-blur border-b border-border flex items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
               <Zap className="text-white fill-white" size={18} />

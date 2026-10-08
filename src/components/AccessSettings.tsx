@@ -121,7 +121,7 @@ const AccessSettings = ({ currentEmail }: AccessSettingsProps) => {
       ) : !members ? (
         <p className="text-sm text-muted-foreground px-1">Cargando usuarios...</p>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           <div className="bg-card rounded-[2rem] border border-border/50 shadow-xl p-5 md:p-8 space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 shrink-0 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">

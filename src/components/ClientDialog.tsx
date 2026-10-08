@@ -63,7 +63,7 @@ const ClientDialog = ({ client, onClose, onSave, plans = [] }: ClientDialogProps
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
         className="bg-card w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl border border-border overflow-hidden max-h-[92vh] overflow-y-auto"
       >
-        <div className="px-6 py-5 border-b border-border bg-secondary/20 flex items-center justify-between">
+        <div className="sticky top-0 z-10 px-5 sm:px-6 py-4 sm:py-5 border-b border-border bg-card flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
               {client ? <Save size={18} /> : <User size={18} />}
@@ -80,7 +80,7 @@ const ClientDialog = ({ client, onClose, onSave, plans = [] }: ClientDialogProps
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="px-5 sm:px-6 pt-5 sm:pt-6 space-y-5">
           <div className="grid grid-cols-1 gap-5">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
@@ -199,7 +199,8 @@ const ClientDialog = ({ client, onClose, onSave, plans = [] }: ClientDialogProps
 
           </div>
 
-          <div className="pt-4 flex gap-3">
+          {/* Fija abajo: en el celular el formulario es largo y el botón quedaba fuera de la pantalla */}
+          <div className="sticky bottom-0 -mx-5 sm:-mx-6 px-5 sm:px-6 py-4 border-t border-border bg-card flex gap-3">
             <button
               type="button"
               onClick={close}

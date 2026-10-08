@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { X, MessageCircle, SkipForward, Check, HandCoins } from 'lucide-react';
 import { Client, CobroData } from '@/types/client';
@@ -37,7 +38,8 @@ const SendQueue = ({ title, clients, templates = DEFAULT_TEMPLATES, cobro = DEFA
     setIndex(i => i + 1);
   };
 
-  return (
+  // Directo en <body>: abierta desde una pantalla animada quedaría por debajo del contenido
+  return createPortal(
     <div className="fixed inset-0 z-[90] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in-fade">
       <motion.div
         initial={{ opacity: 0, y: 30 }}
@@ -88,9 +90,10 @@ const SendQueue = ({ title, clients, templates = DEFAULT_TEMPLATES, cobro = DEFA
               <button
                 type="button"
                 onClick={() => setIndex(i => i + 1)}
-                className="h-14 px-4 rounded-2xl bg-white border border-border text-muted-foreground font-bold text-[10px] uppercase tracking-widest hover:text-foreground transition-all flex items-center gap-2"
+                aria-label="Saltar"
+                className="h-14 px-3.5 min-[380px]:px-4 shrink-0 rounded-2xl bg-white border border-border text-muted-foreground font-bold text-[10px] uppercase tracking-widest hover:text-foreground transition-all flex items-center gap-2"
               >
-                <SkipForward size={16} /> Saltar
+                <SkipForward size={16} /> <span className="hidden min-[380px]:inline">Saltar</span>
               </button>
               {onRegisterPayment && (
                 <button
@@ -98,7 +101,7 @@ const SendQueue = ({ title, clients, templates = DEFAULT_TEMPLATES, cobro = DEFA
                   onClick={() => onRegisterPayment(client)}
                   title="Registrar pago"
                   aria-label="Registrar pago"
-                  className="h-14 px-4 rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-700 font-bold text-[10px] uppercase tracking-widest hover:bg-emerald-100 transition-all flex items-center gap-2"
+                  className="h-14 px-3.5 min-[380px]:px-4 shrink-0 rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-700 font-bold text-[10px] uppercase tracking-widest hover:bg-emerald-100 transition-all flex items-center gap-2"
                 >
                   <HandCoins size={18} /> <span className="hidden sm:inline">Pagó</span>
                 </button>
@@ -106,7 +109,7 @@ const SendQueue = ({ title, clients, templates = DEFAULT_TEMPLATES, cobro = DEFA
               <button
                 type="button"
                 onClick={handleSend}
-                className="flex-1 h-14 rounded-2xl bg-[#25D366] text-white font-black text-[11px] uppercase tracking-[0.15em] shadow-lg shadow-[#25D366]/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                className="flex-1 min-w-0 h-14 px-3 rounded-2xl bg-[#25D366] text-white font-black text-[11px] uppercase tracking-wider min-[380px]:tracking-[0.15em] whitespace-nowrap shadow-lg shadow-[#25D366]/20 active:scale-95 transition-all flex items-center justify-center gap-2"
               >
                 <MessageCircle size={18} /> Enviar y seguir
               </button>
@@ -129,7 +132,8 @@ const SendQueue = ({ title, clients, templates = DEFAULT_TEMPLATES, cobro = DEFA
           </div>
         )}
       </motion.div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

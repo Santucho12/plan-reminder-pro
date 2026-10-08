@@ -65,9 +65,9 @@ describe('SummaryCards', () => {
     );
 
     // Activos: todos los que tienen el plan vigente (incluye hoy y próximos)
-    expect(valueOf('Clientes Activos')).toBe('4');
+    expect(valueOf('Activos')).toBe('4');
     expect(valueOf('Vencen hoy')).toBe('1');
-    expect(valueOf('Próximos a vencerse')).toBe('2');
+    expect(valueOf('Por vencer')).toBe('2');
     // Vencidos: solo los de 1 a 30 días; el de 60 días figura aparte como recuperación
     expect(valueOf('Vencidos')).toBe('1');
     expect(screen.getByText('Hace 1 a 30 días · 1 en recuperación')).toBeInTheDocument();

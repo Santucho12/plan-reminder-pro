@@ -79,7 +79,7 @@ const PaymentDialog = ({ client, templates = DEFAULT_TEMPLATES, cobro = DEFAULT_
         aria-label="Registrar pago"
         className="bg-card w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl border border-border overflow-hidden max-h-[92vh] overflow-y-auto"
       >
-        <div className="px-6 py-5 border-b border-border bg-secondary/20 flex items-center justify-between">
+        <div className="sticky top-0 z-10 px-6 py-5 border-b border-border bg-card flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
               <BadgeDollarSign size={18} />
@@ -125,7 +125,7 @@ const PaymentDialog = ({ client, templates = DEFAULT_TEMPLATES, cobro = DEFAULT_
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          <form onSubmit={handleSubmit} className="px-6 pt-6 space-y-5">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label htmlFor="pago-monto" className={labelClass}>Monto cobrado</label>
@@ -184,7 +184,8 @@ const PaymentDialog = ({ client, templates = DEFAULT_TEMPLATES, cobro = DEFAULT_
 
             {invalid && <p role="alert" className="text-sm text-rose-600 font-medium">{invalid}</p>}
 
-            <div className="pt-2 flex gap-3">
+            {/* Fija abajo: con el celular apaisado los botones quedaban fuera de la pantalla */}
+            <div className="sticky bottom-0 -mx-6 px-6 py-4 border-t border-border bg-card flex gap-3">
               <button type="button" onClick={close} className="flex-1 h-12 rounded-xl bg-secondary text-foreground font-bold text-[10px] uppercase tracking-widest hover:bg-secondary/80 transition-all">
                 Cancelar
               </button>

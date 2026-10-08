@@ -85,7 +85,7 @@ const SummaryCards = ({ clients, payments = [], onUndoPayment }: SummaryCardsPro
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4"
+        className="grid grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4"
       >
         {cards.map((card, index) => (
           <motion.div
@@ -199,7 +199,7 @@ const SummaryCards = ({ clients, payments = [], onUndoPayment }: SummaryCardsPro
         </div>
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <div className="rounded-2xl border border-border bg-card p-5 md:p-6">
           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Cobrado últimos 6 meses</p>
           <div className="flex items-end gap-2 h-32">

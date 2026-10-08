@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { Eye, EyeOff, KeyRound, Lock, Save, ShieldCheck, UserCog } from 'lucide-react';
 import { Member, fetchMembers, updateConfigurableUser } from '@/lib/api';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { userMessage } from '@/lib/errors';
 
 interface AccessSettingsProps {
   /** Mail del usuario logueado, para marcar cuál es "vos". */
@@ -70,7 +71,7 @@ const AccessSettings = ({ currentEmail }: AccessSettingsProps) => {
       setEmail(list.find(m => m.rol === 'usuario')?.email ?? '');
       setLoadError('');
     } catch (err: any) {
-      setLoadError(err?.message || 'No se pudieron cargar los usuarios');
+      setLoadError(userMessage(err, 'No se pudieron cargar los usuarios'));
     }
   }, []);
 
@@ -103,7 +104,7 @@ const AccessSettings = ({ currentEmail }: AccessSettingsProps) => {
       setPassword('');
       await load();
     } catch (err: any) {
-      setError(err?.message || 'No se pudo actualizar el usuario');
+      setError(userMessage(err, 'No se pudo actualizar el usuario'));
     } finally {
       setSaving(false);
     }

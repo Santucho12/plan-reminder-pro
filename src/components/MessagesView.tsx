@@ -120,7 +120,7 @@ const MessagesView = ({ clients, templates = DEFAULT_TEMPLATES, cobro = DEFAULT_
       {mode === 'send' && (
         <Tabs defaultValue="today" className="w-full">
           <div className="mb-5 md:mb-8">
-            <TabsList className="bg-secondary/40 backdrop-blur-md p-1.5 rounded-2xl border border-white/40 h-auto w-full sm:w-max grid grid-cols-2 gap-1 sm:flex sm:gap-0">
+            <TabsList className="bg-secondary/40 backdrop-blur-md p-1.5 rounded-2xl border border-white/40 h-auto w-full grid grid-cols-2 sm:grid-cols-4 gap-1 xl:w-max xl:flex xl:gap-0">
               {segments.map(({ id, label, icon: Icon }) => (
                 <TabsTrigger key={id} value={id} className="px-3 md:px-6 py-2.5 rounded-xl text-[13px] sm:text-sm font-bold transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-lg">
                   <Icon className="w-4 h-4 mr-1.5 sm:mr-2 shrink-0" />
@@ -136,8 +136,8 @@ const MessagesView = ({ clients, templates = DEFAULT_TEMPLATES, cobro = DEFAULT_
             const pending = all.filter(c => !sentToday(c));
             const list = hideSent ? pending : all;
             return (
-              <TabsContent key={id} value={id} className="grid grid-cols-1 lg:grid-cols-3 gap-5 md:gap-8 outline-none animate-in-slide">
-                <div className="order-2 lg:order-none lg:col-span-1">
+              <TabsContent key={id} value={id} className="grid grid-cols-1 xl:grid-cols-3 gap-5 md:gap-8 outline-none animate-in-slide">
+                <div className="order-2 xl:order-none xl:col-span-1">
                   <div className="bg-card rounded-3xl md:rounded-[2rem] border border-border/60 shadow-xl p-5 md:p-8 space-y-5 md:space-y-6">
                     <div className="space-y-2">
                       <h4 className="text-[13px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
@@ -164,7 +164,7 @@ const MessagesView = ({ clients, templates = DEFAULT_TEMPLATES, cobro = DEFAULT_
                   </div>
                 </div>
 
-                <div className="order-1 lg:order-none lg:col-span-2">
+                <div className="order-1 xl:order-none xl:col-span-2">
                   <div className="bg-card rounded-3xl md:rounded-[2rem] border border-border/60 shadow-xl overflow-hidden">
                     <div className="px-4 md:px-6 py-4 md:py-5 border-b border-border bg-secondary/20 flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
@@ -202,7 +202,7 @@ const MessagesView = ({ clients, templates = DEFAULT_TEMPLATES, cobro = DEFAULT_
                               <div className="w-7 h-7 shrink-0 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[11px] uppercase">
                                 {client.nombre.charAt(0)}
                               </div>
-                              <div className="flex-1 min-w-0">
+                              <div className="flex-1 min-w-[7rem]">
                                 {onOpenClient ? (
                                   <button type="button" onClick={() => onOpenClient(client)} title="Ver ficha" className="block max-w-full text-left hover:text-primary transition-colors">
                                     <p className="text-sm font-semibold truncate">{client.nombre}</p>
@@ -217,13 +217,13 @@ const MessagesView = ({ clients, templates = DEFAULT_TEMPLATES, cobro = DEFAULT_
                               </div>
                               <span className="hidden sm:block text-sm font-bold tabular-nums">${client.total.toLocaleString('es-AR')}</span>
                               {lastNotice(client) && (
-                                <span className="hidden sm:inline text-[10px] font-semibold text-muted-foreground whitespace-nowrap">
+                                <span className="hidden 2xl:inline text-[10px] font-semibold text-muted-foreground whitespace-nowrap">
                                   Último aviso: {lastNotice(client)}
                                 </span>
                               )}
                               {sentToday(client) && (
                                 <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-emerald-600">
-                                  <CheckCircle2 size={14} /> <span className="hidden md:inline">Enviado hoy</span>
+                                  <CheckCircle2 size={14} /> <span className="hidden 2xl:inline">Enviado hoy</span>
                                 </span>
                               )}
                               {onRegisterPayment && (

@@ -52,7 +52,8 @@ const ClientName = ({ client, onOpen, className }: { client: Client; onOpen?: (c
 };
 
 const ClientTable = ({ clients, onSendMessage, onEdit, onDelete, onRegisterPayment, onOpen }: ClientTableProps) => {
-  const isMobile = useIsMobile();
+  // La tabla necesita ancho: hasta 1280px se muestran tarjetas
+  const isMobile = useIsMobile(1280);
 
   if (clients.length === 0) {
     return (
@@ -78,6 +79,8 @@ const ClientTable = ({ clients, onSendMessage, onEdit, onDelete, onRegisterPayme
     return (
       <div className="space-y-3">
         <p className="px-1 text-xs font-semibold tracking-widest text-muted-foreground uppercase">{clients.length} Resultados</p>
+        {/* En tablet entran dos tarjetas por fila */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {clients.map(client => (
           <article key={client.id} className="bg-card rounded-2xl border border-border shadow-card p-4 space-y-3">
             <div className="flex items-start gap-3">
@@ -129,6 +132,7 @@ const ClientTable = ({ clients, onSendMessage, onEdit, onDelete, onRegisterPayme
             </div>
           </article>
         ))}
+        </div>
       </div>
     );
   }
@@ -153,7 +157,7 @@ const ClientTable = ({ clients, onSendMessage, onEdit, onDelete, onRegisterPayme
                 <th className="text-left py-3 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                   <div className="flex items-center gap-2"><User size={12} /> Cliente</div>
                 </th>
-                <th className="hidden lg:table-cell text-left py-3 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                <th className="hidden min-[1440px]:table-cell text-left py-3 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                   <div className="flex items-center gap-2"><Phone size={12} /> Contacto</div>
                 </th>
                 <th className="hidden lg:table-cell text-left py-3 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Plataforma</th>
@@ -188,13 +192,13 @@ const ClientTable = ({ clients, onSendMessage, onEdit, onDelete, onRegisterPayme
                           <ClientName
                             client={client}
                             onOpen={onOpen}
-                            className="text-xs font-semibold text-foreground line-clamp-2 max-w-[140px] break-words whitespace-normal block"
+                            className="text-xs font-semibold text-foreground line-clamp-2 max-w-[160px] break-words whitespace-normal"
                           />
                           <SeguimientoChip client={client} />
                         </div>
                       </div>
                     </td>
-                    <td className="hidden lg:table-cell px-3 py-2.5">
+                    <td className="hidden min-[1440px]:table-cell px-3 py-2.5">
                       {client.celular ? (
                         <span className="text-xs font-mono font-medium text-muted-foreground bg-secondary/50 px-2 py-1 rounded-md">
                           {client.celular}

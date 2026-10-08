@@ -86,7 +86,7 @@ export const UnsavedChangesProvider = ({ children }: { children: React.ReactNode
               <button
                 type="button"
                 onClick={leave}
-                className="flex-1 h-12 px-4 rounded-xl bg-secondary text-rose-700 font-bold text-[10px] uppercase tracking-widest hover:bg-rose-50 transition-colors"
+                className="w-full sm:w-auto sm:flex-1 shrink-0 h-12 px-4 rounded-xl bg-secondary text-rose-700 font-bold text-[10px] uppercase tracking-widest hover:bg-rose-50 transition-colors"
               >
                 Salir sin guardar
               </button>
@@ -94,7 +94,7 @@ export const UnsavedChangesProvider = ({ children }: { children: React.ReactNode
                 type="button"
                 autoFocus
                 onClick={() => setPending(null)}
-                className="flex-1 h-12 px-4 rounded-xl bg-primary text-white font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20"
+                className="w-full sm:w-auto sm:flex-1 shrink-0 h-12 px-4 rounded-xl bg-primary text-white font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20"
               >
                 Seguir editando
               </button>

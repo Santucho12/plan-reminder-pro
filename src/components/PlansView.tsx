@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Layers, Percent, Plus, Trash2, Save, MessageCircle, Package, Check, Pencil } from 'lucide-react';
 import { Client, Plan, isCombo } from '@/types/client';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { userMessage } from '@/lib/errors';
 
 interface PlansViewProps {
   clients: Client[];
@@ -124,7 +125,7 @@ const PlansView = ({ clients, plans, onSave, onNotify }: PlansViewProps) => {
       const changed = await onSave(finalRows.filter(r => r.nombre.trim() !== ''), { applyToClients, skipNoted, renames });
       if (applyToClients) setAffected(changed);
     } catch (err: any) {
-      setError(err?.message || 'No se pudieron guardar los cambios');
+      setError(userMessage(err, 'No se pudieron guardar los cambios'));
     } finally {
       setSaving(false);
     }
@@ -669,10 +670,10 @@ const PlansView = ({ clients, plans, onSave, onNotify }: PlansViewProps) => {
             </ul>
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <button type="button" onClick={() => resolvePrompt(false)} className="flex-1 h-12 px-4 rounded-xl bg-secondary text-foreground font-bold text-[10px] uppercase tracking-widest">
+              <button type="button" onClick={() => resolvePrompt(false)} className="w-full sm:w-auto sm:flex-1 shrink-0 h-12 px-4 rounded-xl bg-secondary text-foreground font-bold text-[10px] uppercase tracking-widest">
                 No, dejar los combos igual
               </button>
-              <button type="button" onClick={() => resolvePrompt(true)} className="flex-1 h-12 px-4 rounded-xl bg-primary text-white font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20">
+              <button type="button" onClick={() => resolvePrompt(true)} className="w-full sm:w-auto sm:flex-1 shrink-0 h-12 px-4 rounded-xl bg-primary text-white font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20">
                 Sí, actualizar combos
               </button>
             </div>

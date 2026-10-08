@@ -51,6 +51,7 @@ import {
   parseSettings,
   serializeSettings,
 } from '@/lib/whatsapp';
+import { userMessage } from '@/lib/errors';
 
 const IndexPage = () => {
   const confirmLeave = useConfirmLeave();
@@ -288,7 +289,7 @@ const IndexPage = () => {
       toast.success('Pago registrado');
       await Promise.all([loadClients(), loadPayments()]);
     } catch (error: any) {
-      toast.error(error?.message || 'No se pudo registrar el pago');
+      toast.error(userMessage(error, 'No se pudo registrar el pago. Probá de nuevo.'));
       throw error;
     }
   };
@@ -384,6 +385,9 @@ const IndexPage = () => {
       return 0;
     });
 
+  // Acciones urgentes del dashboard: los dados de baja no se cobran (igual que en Mensajes y en las tarjetas)
+  const urgentes = clients.filter(c => c.seguimiento !== 'baja');
+
   const sheetClient = sheetClientId ? clients.find(c => c.id === sheetClientId) ?? null : null;
 
   if (authLoading) return null;
@@ -421,7 +425,7 @@ const IndexPage = () => {
         onLogout={() => confirmLeave(handleLogout)}
       />
 
-      <main className="md:ml-[260px] px-4 pt-20 pb-28 md:p-10 min-h-screen relative overflow-hidden">
+      <main className="lg:ml-[260px] px-4 md:px-8 pt-20 pb-28 lg:p-10 min-h-screen relative overflow-hidden">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-[100px] -z-10" />
         <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-emerald-500/5 rounded-full translate-y-1/2 -translate-x-1/2 blur-[80px] -z-10" />
 
@@ -447,7 +451,7 @@ const IndexPage = () => {
                   </>
                 )}
                 {activeView === 'clientes' && (
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
                     <div>
                       <h2 className={headingClass}>Gestión de Clientes</h2>
                       <p className={subtitleClass}>Buscá, filtrá y organizá tu base de datos.</p>
@@ -567,12 +571,12 @@ const IndexPage = () => {
                           </div>
 
                           <TabsContent value="today" className="mt-0 outline-none animate-in-slide">
-                            <ClientTable clients={clients.filter(c => Number(c.dias) === 0)} {...tableActions} />
+                            <ClientTable clients={urgentes.filter(c => Number(c.dias) === 0)} {...tableActions} />
                           </TabsContent>
 
                           <TabsContent value="soon" className="mt-0 outline-none animate-in-slide">
                             <ClientTable
-                              clients={clients
+                              clients={urgentes
                                 .filter(c => {
                                   const d = Number(c.dias);
                                   return d >= 1 && d <= 3;
@@ -597,13 +601,13 @@ const IndexPage = () => {
                       <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
                         <button
                           onClick={() => confirmLeave(() => setActiveView('config'))}
-                          className="flex-1 h-14 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl"
+                          className="w-full sm:w-auto sm:flex-1 shrink-0 h-14 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl"
                         >
                           Ir a centro de carga
                         </button>
                         <button
                           onClick={() => openEdit(null)}
-                          className="flex-1 h-14 rounded-2xl bg-white border border-border text-slate-900 font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all shadow-md"
+                          className="w-full sm:w-auto sm:flex-1 shrink-0 h-14 rounded-2xl bg-white border border-border text-slate-900 font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all shadow-md"
                         >
                           Alta Manual
                         </button>
@@ -615,7 +619,7 @@ const IndexPage = () => {
 
               {activeView === 'clientes' && (
                 <div className="space-y-6">
-                  <div className="flex flex-col lg:flex-row gap-3 md:gap-4 mb-4 md:mb-8 bg-card border border-border p-3 md:p-5 rounded-2xl md:rounded-3xl shadow-sm">
+                  <div className="flex flex-col xl:flex-row gap-3 md:gap-4 mb-4 md:mb-8 bg-card border border-border p-3 md:p-5 rounded-2xl md:rounded-3xl shadow-sm">
                     <div className="relative flex-1">
                       <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
                       <Input

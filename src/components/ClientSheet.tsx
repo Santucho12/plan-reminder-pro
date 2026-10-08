@@ -18,6 +18,7 @@ import {
   getSegment,
 } from '@/lib/whatsapp';
 import StatusBadge from './StatusBadge';
+import { userMessage } from '@/lib/errors';
 
 interface ClientSheetProps {
   client: Client;
@@ -73,7 +74,7 @@ const ClientSheet = ({ client, userId, payments = [], templates = DEFAULT_TEMPLA
       setEvents(prev => [event, ...prev]);
       setNote('');
     } catch (err: any) {
-      setError(err?.message || 'No se pudo guardar la nota');
+      setError(userMessage(err, 'No se pudo guardar la nota'));
     } finally {
       setSaving(false);
     }
@@ -86,7 +87,7 @@ const ClientSheet = ({ client, userId, payments = [], templates = DEFAULT_TEMPLA
     try {
       await onToggleBaja(client);
     } catch (err: any) {
-      setError(err?.message || 'No se pudo actualizar el cliente');
+      setError(userMessage(err, 'No se pudo actualizar el cliente'));
     } finally {
       setTogglingBaja(false);
     }

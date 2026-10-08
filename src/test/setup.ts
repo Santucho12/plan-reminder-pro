@@ -49,3 +49,6 @@ vi.mock("framer-motion", async () => {
 
 // jsdom no implementa el scroll de la ventana
 window.scrollTo = (() => {}) as typeof window.scrollTo;
+
+// Los tests usan una pantalla de compu (la tabla de clientes aparece desde 1280px)
+window.innerWidth = 1440;

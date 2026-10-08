@@ -5,6 +5,7 @@ import { parseExcelFile } from '@/lib/excel';
 import { ColumnMapping } from '@/types/client';
 import { ImportPlan, applyImport, previewImport } from '@/lib/api';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { userMessage } from '@/lib/errors';
 
 interface ExcelUploadProps {
   onImport: () => void;
@@ -100,7 +101,7 @@ const ExcelUpload = ({ onImport, userId, hideTitle }: ExcelUploadProps) => {
       setRemoveMissing(false);
       setStep('preview');
     } catch (err: any) {
-      setError(err.message || 'Error al leer los clientes actuales');
+      setError(userMessage(err, 'No se pudieron leer los clientes actuales'));
     } finally {
       setImporting(false);
     }
@@ -116,7 +117,7 @@ const ExcelUpload = ({ onImport, userId, hideTitle }: ExcelUploadProps) => {
       onImport();
       setStep('success');
     } catch (err: any) {
-      setError(err.message || 'Error al importar');
+      setError(userMessage(err, 'No se pudo completar la importación. Probá de nuevo.'));
     } finally {
       setImporting(false);
     }

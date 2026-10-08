@@ -7,6 +7,16 @@ interface AuthPageProps {
   onAuth: () => void;
 }
 
+/** Supabase responde en inglés: se traducen los casos que ve el usuario. */
+function loginErrorMessage(err: any): string {
+  const msg = String(err?.message ?? '');
+  if (/invalid login credentials|invalid_credentials/i.test(msg)) return 'El mail o la contraseña no son correctos.';
+  if (/email not confirmed/i.test(msg)) return 'Tu mail todavía no está confirmado.';
+  if (/rate limit|too many/i.test(msg)) return 'Hubo demasiados intentos. Esperá unos minutos y probá de nuevo.';
+  if (/failed to fetch|network/i.test(msg)) return 'No se pudo conectar. Revisá tu conexión a internet.';
+  return msg || 'No se pudo iniciar sesión.';
+}
+
 const AuthPage = ({ onAuth }: AuthPageProps) => {
   const isLogin = true;
   const [email, setEmail] = useState('');
@@ -26,7 +36,7 @@ const AuthPage = ({ onAuth }: AuthPageProps) => {
       }
       onAuth();
     } catch (err: any) {
-      setError(err.message || 'Error de autenticación');
+      setError(loginErrorMessage(err));
     } finally {
       setLoading(false);
     }

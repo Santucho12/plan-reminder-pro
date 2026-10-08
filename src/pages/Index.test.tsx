@@ -93,7 +93,7 @@ describe('acceso', () => {
     fireEvent.change(screen.getByPlaceholderText('••••••••'), { target: { value: 'incorrecta' } });
     fireEvent.click(screen.getByRole('button', { name: /Ingresar/ }));
 
-    expect(await screen.findByText('Invalid login credentials')).toBeInTheDocument();
+    expect(await screen.findByText('El mail o la contraseña no son correctos.')).toBeInTheDocument();
     expect(screen.queryByText('Panel de Control')).not.toBeInTheDocument();
   });
 
@@ -127,6 +127,20 @@ describe('dashboard', () => {
     expect(screen.queryByText('Pronto Dos')).not.toBeInTheDocument();
     expect(screen.queryByText('De Otro Usuario')).not.toBeInTheDocument();
     expect(rowOf('Hoy Uno').getByText('Vence hoy')).toBeInTheDocument();
+  });
+
+  it('los dados de baja no aparecen en las acciones urgentes', async () => {
+    fake.tables.clients.push(
+      makeRow({ id: 'baja-hoy', nombre: 'Baja Hoy', vencimiento: dayOffset(0), seguimiento: 'baja' }),
+      makeRow({ id: 'baja-pronto', nombre: 'Baja Pronto', vencimiento: dayOffset(2), seguimiento: 'baja' }),
+    );
+    await renderApp();
+    await screen.findByText('Hoy Uno');
+    expect(screen.queryByText('Baja Hoy')).not.toBeInTheDocument();
+
+    openTab(/Próximos 3 días/);
+    expect(screen.getByText('Pronto Dos')).toBeInTheDocument();
+    expect(screen.queryByText('Baja Pronto')).not.toBeInTheDocument();
   });
 
   it('la pestaña de próximos 3 días muestra los que están por vencer', async () => {

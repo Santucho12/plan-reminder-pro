@@ -43,7 +43,7 @@ const TEMPLATE_HELP: Record<TemplateKey, string> = {
   expired: 'Se usa con los clientes vencidos hace 1 a 30 días.',
   lost: 'Se usa con los clientes que no renuevan hace más de 30 días.',
   welcome: 'Para enviar desde la ficha de un cliente recién dado de alta.',
-  paid: 'Se ofrece al registrar un pago. [Total] es el monto cobrado y [Vencimiento] la nueva fecha.',
+  paid: 'Se ofrece al registrar un pago. [Total] es el monto cobrado, [Vencimiento] la nueva fecha y [Dias] los días que le quedan.',
   increase: 'Se ofrece al cambiar precios en Plataformas. [Total] es el precio nuevo.',
 };
 

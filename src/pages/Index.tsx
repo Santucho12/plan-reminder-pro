@@ -52,6 +52,7 @@ import {
   serializeSettings,
 } from '@/lib/whatsapp';
 import { userMessage } from '@/lib/errors';
+import { expectedPrice, parsePlanItems, planIncludes, renameInPlan } from '@/lib/plans';
 
 const IndexPage = () => {
   const confirmLeave = useConfirmLeave();
@@ -202,37 +203,49 @@ const IndexPage = () => {
     }
   };
 
-  /** Guarda el catálogo y, si se pide, lleva el precio de cada plan a sus clientes. Devuelve los clientes modificados. */
   /**
-   * Guarda el catálogo. Primero pasa a los clientes de los planes renombrados al nombre nuevo y,
-   * si se pide, lleva el precio de cada plan a sus clientes. Devuelve los clientes con precio cambiado.
+   * Guarda el catálogo. Primero pasa a los clientes de los planes renombrados al nombre nuevo (también
+   * dentro de planes con varias plataformas) y, si se pide, lleva a cada cliente el importe que suma su
+   * plan en el catálogo (precio × cantidad). Devuelve los clientes con precio cambiado.
    */
   const handleSavePlans = async (
     planes: Plan[],
     options: { applyToClients: boolean; skipNoted: boolean; renames?: { from: string; to: string }[] },
   ) => {
-    const norm = (value: string) => value.trim().toLowerCase();
     const affected: Client[] = [];
     let renamed = false;
     try {
       let current = clients;
+      let catalog = settings.planes;
       for (const { from, to } of options.renames ?? []) {
-        const targets = current.filter(c => norm(c.plan) === norm(from));
-        if (targets.length === 0) continue;
-        await updateClientsPlan(targets.map(c => c.id), to);
-        renamed = true;
-        const ids = new Set(targets.map(c => c.id));
-        current = current.map(c => (ids.has(c.id) ? { ...c, plan: to } : c));
+        // Clientes agrupados por cómo queda su plan con el nombre nuevo
+        const byNewPlan = new Map<string, string[]>();
+        for (const c of current) {
+          const plan = renameInPlan(c.plan, from, to, catalog);
+          if (plan !== c.plan) byNewPlan.set(plan, [...(byNewPlan.get(plan) ?? []), c.id]);
+        }
+        for (const [plan, ids] of byNewPlan) {
+          await updateClientsPlan(ids, plan);
+          renamed = true;
+          const idSet = new Set(ids);
+          current = current.map(c => (idSet.has(c.id) ? { ...c, plan } : c));
+        }
+        catalog = catalog.map(p => (p.nombre.trim().toLowerCase() === from.trim().toLowerCase() ? { ...p, nombre: to } : p));
       }
       if (options.applyToClients) {
-        for (const plan of planes) {
-          const targets = current.filter(c =>
-            norm(c.plan) === norm(plan.nombre) && c.total !== plan.precio && !(options.skipNoted && c.nota_precio)
-          );
-          if (targets.length === 0) continue;
-          await updateClientsTotal(targets.map(c => c.id), plan.precio);
-          affected.push(...targets.map(c => ({ ...c, total: plan.precio })));
+        const byTotal = new Map<number, Client[]>();
+        for (const c of current) {
+          if (options.skipNoted && c.nota_precio) continue;
+          const expected = expectedPrice(c.plan, planes);
+          if (expected === null || expected === c.total) continue;
+          byTotal.set(expected, [...(byTotal.get(expected) ?? []), c]);
         }
+        for (const [total, targets] of byTotal) {
+          await updateClientsTotal(targets.map(c => c.id), total);
+          affected.push(...targets.map(c => ({ ...c, total })));
+        }
+        // La cola de aviso de aumento recorre a los clientes agrupados por plataforma
+        affected.sort((a, b) => a.plan.localeCompare(b.plan));
       }
       await saveSettings({ ...settings, planes });
       if (affected.length > 0 || renamed) await loadClients();
@@ -369,13 +382,15 @@ const IndexPage = () => {
     setIsDialogOpen(true);
   };
 
-  const platforms = Array.from(new Set(clients.map(c => c.plan).filter(Boolean)));
+  // Cada plataforma o combo por separado: un cliente con varias aparece al filtrar por cualquiera
+  const platforms = Array.from(new Set(clients.flatMap(c => parsePlanItems(c.plan, settings.planes).map(it => it.nombre))))
+    .sort((a, b) => a.localeCompare(b));
   const statuses = Array.from(new Set(clients.map(c => c.estado).filter(Boolean)));
 
   const filteredClients = clients
     .filter(client => {
       const matchesSearch = client.nombre.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesPlatform = platformFilter === 'all' || client.plan === platformFilter;
+      const matchesPlatform = platformFilter === 'all' || planIncludes(client.plan, platformFilter, settings.planes);
       const matchesStatus = statusFilter === 'all' || client.estado === statusFilter;
       return matchesSearch && matchesPlatform && matchesStatus;
     })

@@ -496,13 +496,14 @@ export async function saveSettingsJson(userId: string, settings: object) {
 }
 
 /**
- * Nuevo vencimiento al cobrar: se suman los meses al vencimiento actual, o a hoy si ya estaba
- * vencido (no se le cobran los días que estuvo sin servicio).
+ * Nuevo vencimiento al cobrar: se suman los meses a su vencimiento, aunque ya estuviera vencido.
+ * Los días que pagó tarde no se regalan: si venció el 5 y paga el 8, el próximo vencimiento es el 5.
+ * Solo si así seguiría vencido (estuvo sin pagar más tiempo del que renueva) se cuenta desde hoy.
  */
 export function computeRenewal(vencimiento: Date, meses = 1, today: Date = new Date()): string {
-  const current = startOfDay(vencimiento);
-  const base = current > startOfDay(today) ? current : startOfDay(today);
-  return format(addMonths(base, meses), 'yyyy-MM-dd');
+  const fromDue = addMonths(startOfDay(vencimiento), meses);
+  const renewed = fromDue > startOfDay(today) ? fromDue : addMonths(startOfDay(today), meses);
+  return format(renewed, 'yyyy-MM-dd');
 }
 
 export async function fetchPayments(userId: string): Promise<Payment[]> {

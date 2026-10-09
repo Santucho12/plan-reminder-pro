@@ -79,8 +79,9 @@ export const HELP: Record<HelpModule, HelpContent> = {
         title: 'Acciones de cada cliente',
         items: [
           'WhatsApp: muestra el mensaje que corresponde según su vencimiento y abre el chat con el texto listo para enviar. Queda registrado como último mensaje.',
-          'Pagó / Registrar pago: cargás el monto, el medio y por cuántos meses renueva. Si el plan todavía estaba vigente se suma desde su vencimiento; si ya estaba vencido, desde hoy (no se cobran los días sin servicio). Al terminar podés avisarle por WhatsApp con la plantilla "Pago recibido".',
-          'Editar (lápiz): nombre, celular, plataforma, vencimiento, importe y notas. La nota de precio sirve para marcar precios especiales que no querés que cambien con los aumentos.',
+          'Pagó / Registrar pago: cargás el monto, el medio y por cuántos meses renueva. Se suma siempre desde su vencimiento, aunque haya pagado tarde: si venció el 5 y paga el 8, el próximo vencimiento es el 5 del mes siguiente. Solo si estuvo sin pagar más tiempo del que renueva se cuenta desde el día del pago. Al terminar podés avisarle por WhatsApp con la plantilla "Pago recibido".',
+          'Editar (lápiz): nombre, celular, plataformas, vencimiento, importe y notas. La nota de precio sirve para marcar precios especiales que no querés que cambien con los aumentos.',
+          'Un cliente puede tener varias plataformas o combos, cada uno con su cantidad: por ejemplo 2 cuentas de Disney+ y YouTube Premium. Usá "+ Agregar plataforma o combo" y los botones − / +. El importe se completa solo con el precio del catálogo (precio × cantidad) y lo podés cambiar.',
           'Eliminar (tacho): borra al cliente. Sus pagos quedan en el historial de cobros.',
         ],
       },
@@ -168,13 +169,14 @@ export const HELP: Record<HelpModule, HelpContent> = {
         title: 'Combos',
         items: [
           'Juntan dos o más plataformas con un precio especial. Se muestra el % de descuento contra comprarlas por separado.',
+          'Una plataforma puede ir más de una vez en el combo: tocala para agregarla y usá − / + para elegir cuántas cuentas (ej: Disney+ ×2 + YouTube Premium).',
           'Se asignan a los clientes como cualquier otro plan.',
         ],
       },
       {
         title: 'Pasar los precios a los clientes',
         items: [
-          'Cambiar el catálogo NO cambia lo que pagan los clientes. Para eso está el botón "Aplicar precios a N clientes".',
+          'Cambiar el catálogo NO cambia lo que pagan los clientes. Para eso está el botón "Aplicar precios a N clientes". A los clientes con varias plataformas se les pone la suma (precio × cantidad de cada una).',
           'La opción de no cambiar el importe a los clientes con nota de precio respeta los precios especiales.',
           'Después de aplicar podés tocar "Avisar el aumento por WhatsApp": abre una cola con la plantilla "Aumento de precio" para cada cliente afectado.',
         ],

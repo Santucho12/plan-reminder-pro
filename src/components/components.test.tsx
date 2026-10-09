@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import { format } from 'date-fns';
+import { addDays, addMonths, differenceInCalendarDays, format, startOfDay } from 'date-fns';
 import { dayOffset, makeClient } from '@/test/fakeSupabase';
 import { DEFAULT_TEMPLATES } from '@/lib/whatsapp';
 
@@ -202,6 +202,40 @@ describe('ClientDialog', () => {
     render(<ClientDialog client={null} onSave={vi.fn()} onClose={() => {}} plans={[{ nombre: 'Netflix 4K', precio: 8500 }]} />);
     fill('Ej: Netflix 4K', 'netflix 4k');
     expect(screen.getByPlaceholderText('0')).toHaveValue(8500);
+  });
+
+  it('permite varias plataformas con cantidad y suma el precio del catálogo', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const plans = [{ nombre: 'Disney+', precio: 6000 }, { nombre: 'YouTube Premium', precio: 4000 }];
+    render(<ClientDialog client={null} onSave={onSave} onClose={() => {}} plans={plans} />);
+    fill('Ej: Juan Pérez', 'Ana');
+    fill('549...', '2915371541');
+    fill('Ej: Netflix 4K', 'Disney+');
+    fireEvent.click(screen.getByRole('button', { name: 'Una cuenta más de Disney+' }));
+    fireEvent.click(screen.getByRole('button', { name: /Agregar plataforma o combo/ }));
+    fill('Otra plataforma o combo', 'YouTube Premium');
+    // 2 × 6.000 + 4.000
+    expect(screen.getByPlaceholderText('0')).toHaveValue(16000);
+
+    fireEvent.click(screen.getByRole('button', { name: /Crear Cliente/ }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0][0]).toMatchObject({ plan: 'Disney+ x2 + YouTube Premium', total: 16000 });
+  });
+
+  it('al editar muestra cada plataforma en su fila y respeta el importe cargado', () => {
+    const plans = [{ nombre: 'Disney+', precio: 6000 }, { nombre: 'YouTube Premium', precio: 4000 }];
+    const client = makeClient({ plan: 'Disney+ x2 + YouTube Premium', total: 15000 });
+    render(<ClientDialog client={client} onSave={vi.fn()} onClose={() => {}} plans={plans} />);
+    expect(screen.getByLabelText('Plataforma o combo')).toHaveValue('Disney+');
+    expect(screen.getByLabelText('Plataforma o combo 2')).toHaveValue('YouTube Premium');
+    expect(screen.getByRole('group', { name: 'Cantidad de Disney+' })).toHaveTextContent('2');
+    expect(screen.getByPlaceholderText('0')).toHaveValue(15000);
+    // Ofrece el precio del catálogo sin pisar el que tenía
+    fireEvent.click(screen.getByRole('button', { name: /Según el catálogo: \$16\.000/ }));
+    expect(screen.getByPlaceholderText('0')).toHaveValue(16000);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar YouTube Premium' }));
+    expect(screen.queryByLabelText('Plataforma o combo 2')).not.toBeInTheDocument();
   });
 
   it('no permite importes negativos', () => {
@@ -594,6 +628,25 @@ describe('PaymentDialog', () => {
     expect(screen.getByRole('button', { name: /Confirmar pago/ })).toBeDisabled();
   });
 
+  it('el que pagó tarde renueva desde su vencimiento y el aviso dice los días que le quedan', async () => {
+    const open = vi.fn();
+    vi.stubGlobal('open', open);
+    // Venció hace 10 días: se renueva desde ese vencimiento, no desde hoy
+    const vencimiento = startOfDay(addDays(new Date(), -10));
+    const client = makeClient({ nombre: 'Ana', plan: 'HBO', dias: -10, total: 5000, vencimiento });
+    render(<PaymentDialog client={client} onConfirm={vi.fn().mockResolvedValue(undefined)} onClose={() => {}} onNotified={vi.fn()} />);
+
+    const nuevo = addMonths(vencimiento, 1);
+    expect(screen.getByLabelText('Nuevo vencimiento')).toHaveValue(format(nuevo, 'yyyy-MM-dd'));
+    fireEvent.click(screen.getByRole('button', { name: /Confirmar pago/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Avisar por WhatsApp/ }));
+
+    const quedan = differenceInCalendarDays(nuevo, new Date());
+    const text = new URL(open.mock.calls[0][0]).searchParams.get('text')!;
+    expect(text).toContain(`queda activo hasta el ${format(nuevo, 'dd/MM/yyyy')} (te quedan ${quedan} días)`);
+    expect(quedan).toBeLessThan(25);
+  });
+
   it('después de cobrar ofrece avisar con la plantilla de pago recibido', async () => {
     const open = vi.fn();
     vi.stubGlobal('open', open);
@@ -893,6 +946,41 @@ describe('PlansView', () => {
     fireEvent.change(popup.getByLabelText('Ajuste'), { target: { value: '10' } });
     fireEvent.click(popup.getByRole('button', { name: /Guardar cambios/ }));
     await waitFor(() => expect(onSave).toHaveBeenCalledWith([{ nombre: 'YouTube Premium', precio: 3850 }], expect.anything()));
+  });
+
+  it('un combo puede llevar varias cuentas de la misma plataforma', async () => {
+    const onSave = vi.fn().mockResolvedValue([]);
+    render(<PlansView clients={[]} plans={[{ nombre: 'Disney+', precio: 6000 }, { nombre: 'YouTube Premium', precio: 4000 }]} onSave={onSave} />);
+    fireEvent.click(screen.getByRole('button', { name: /Nuevo combo/ }));
+    const popup = within(screen.getByRole('dialog', { name: 'Nuevo combo' }));
+    fireEvent.click(popup.getByRole('button', { name: 'Disney+' }));
+    fireEvent.click(popup.getByRole('button', { name: 'Una cuenta más de Disney+' }));
+    fireEvent.click(popup.getByRole('button', { name: 'YouTube Premium' }));
+    // 2 × 6.000 + 4.000
+    expect(popup.getByText('Por separado suman $16.000.')).toBeInTheDocument();
+    fireEvent.change(popup.getByLabelText('Precio'), { target: { value: '14000' } });
+    fireEvent.click(popup.getByRole('button', { name: /Crear combo/ }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(
+      expect.arrayContaining([{ nombre: 'Disney+ x2 + YouTube Premium', precio: 14000, plataformas: ['Disney+', 'Disney+', 'YouTube Premium'] }]),
+      expect.anything(),
+    ));
+    expect(screen.getByText('Disney+ ×2')).toBeInTheDocument();
+    expect(screen.getByText(/13% de descuento/)).toBeInTheDocument();
+  });
+
+  it('un cliente con varias plataformas cuenta en cada una y su importe es la suma', () => {
+    const plans = [{ nombre: 'Disney+', precio: 6000 }, { nombre: 'YouTube Premium', precio: 4000 }];
+    const clients = [
+      makeClient({ id: 'a', plan: 'Disney+ x2 + YouTube Premium', total: 15000 }),
+      makeClient({ id: 'b', plan: 'Disney+', total: 6000 }),
+    ];
+    render(<PlansView clients={clients} plans={plans} onSave={vi.fn()} />);
+    // No aparece "Disney+ x2 + YouTube Premium" como si fuera otra plataforma
+    expect(screen.queryByRole('button', { name: 'Editar Disney+ x2 + YouTube Premium' })).not.toBeInTheDocument();
+    expect(screen.getByText(/2 clientes/)).toBeInTheDocument();
+    // El combinado paga 15.000 y según el catálogo le corresponden 16.000
+    expect(screen.getByRole('button', { name: /Aplicar precios a 1 cliente/ })).toBeEnabled();
   });
 
   it('al crear un combo el % de descuento calcula el precio sobre la suma', async () => {

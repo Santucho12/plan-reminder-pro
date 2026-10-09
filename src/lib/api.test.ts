@@ -373,7 +373,9 @@ describe('pagos y renovación', () => {
   it.each([
     ['vence más adelante: suma desde su vencimiento', new Date(2026, 9, 20), 1, '2026-11-20'],
     ['vence hoy: suma desde hoy', new Date(2026, 9, 7), 1, '2026-11-07'],
-    ['ya vencido: suma desde hoy', new Date(2026, 8, 1), 1, '2026-11-07'],
+    ['vencido hace 3 días: suma desde su vencimiento (no se regalan los días)', new Date(2026, 9, 4), 1, '2026-11-04'],
+    ['vencido hace un mes: paga 2 meses y sigue contando desde su vencimiento', new Date(2026, 8, 1), 2, '2026-11-01'],
+    ['vencido más tiempo del que paga: cuenta desde hoy para no seguir vencido', new Date(2026, 8, 1), 1, '2026-11-07'],
     ['varios meses', new Date(2026, 9, 20), 3, '2027-01-20'],
     ['fin de mes sin día equivalente', new Date(2027, 0, 31), 1, '2027-02-28'],
   ])('%s', (_label, vencimiento, meses, expected) => {

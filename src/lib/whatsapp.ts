@@ -76,7 +76,7 @@ Cualquier consulta escribinos por acá!`,
   paid: `Hola [Nombre] ✅
 Recibimos tu pago de 💰 [Total]
 
-Tu plan [Plan] queda activo hasta el [Vencimiento].
+Tu plan [Plan] queda activo hasta el [Vencimiento] (te quedan [Dias] días).
 Muchas gracias!`,
   increase: `Hola [Nombre] 👋🏼
 Te avisamos que a partir de tu próxima renovación el valor de [Plan] pasa a ser de 💰 [Total]

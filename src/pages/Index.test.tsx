@@ -571,6 +571,26 @@ describe('plataformas', () => {
     expect(fake.tables.user_configs[0].settings.planes.map((p: any) => p.nombre)).toContain('Spotify Premium');
   });
 
+  it('renombrar y aplicar precios también alcanza a los clientes con varias plataformas', async () => {
+    fake.tables.clients.push(makeRow({ id: 'combinado', nombre: 'Con Varias', vencimiento: dayOffset(15), total: 1, plan: 'Spotify x2 + Netflix' }));
+    fake.tables.user_configs.push({ user_id: 'u1', settings: { version: 1, templates: {}, cobro: { alias: '', cbu: '' }, planes: [{ nombre: 'Netflix', precio: 9000 }, { nombre: 'Spotify', precio: 3000 }] } });
+    await renderApp();
+    await screen.findByText('Hoy Uno');
+    goTo('Plataformas');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar Spotify' }));
+    const popup = within(screen.getByRole('dialog', { name: 'Editar Spotify' }));
+    fireEvent.change(popup.getByLabelText('Nombre'), { target: { value: 'Spotify Premium' } });
+    fireEvent.click(popup.getByRole('button', { name: /Guardar cambios/ }));
+    await waitFor(() => expect(h.toast.success).toHaveBeenCalledWith('Catálogo guardado'));
+    expect(fake.tables.clients.find(c => c.id === 'combinado')!.plan).toBe('Spotify Premium x2 + Netflix');
+
+    fireEvent.click(screen.getByRole('button', { name: /Aplicar precios a \d+ clientes?/ }));
+    await waitFor(() => expect(h.toast.success).toHaveBeenCalledWith('Precios actualizados'));
+    // 2 × 3.000 + 9.000
+    expect(fake.tables.clients.find(c => c.id === 'combinado')!.total).toBe(15000);
+  });
+
   it('aplicar el precio del catálogo actualiza a los clientes del plan y ofrece avisar el aumento', async () => {
     await renderApp();
     await screen.findByText('Hoy Uno');
@@ -966,6 +986,16 @@ describe('clientes: filtros, celular y errores', () => {
     choose(plataforma, 'Plataforma');
     choose(estado, 'Por vencer');
     expect(names()).toEqual(['Pronto Dos']);
+  });
+
+  it('el filtro de plataforma encuentra a los clientes que la tienen junto a otras', async () => {
+    fake.tables.clients.push(makeRow({ id: 'combinado', nombre: 'Con Varias', vencimiento: dayOffset(15), total: 100, plan: 'Spotify x2 + HBO' }));
+    await openClients();
+    const [plataforma] = screen.getAllByRole('combobox');
+    choose(plataforma, 'Spotify');
+    expect([...names()].sort()).toEqual(['Con Varias', 'Perdido Cuatro', 'Vencido Tres']);
+    choose(plataforma, 'HBO');
+    expect([...names()].sort()).toEqual(['Con Varias', 'Pronto Dos']);
   });
 
   it('busca combinando el texto con los filtros y avisa si no hay resultados', async () => {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, BadgeDollarSign, Check, MessageCircle } from 'lucide-react';
-import { format } from 'date-fns';
+import { differenceInCalendarDays, format } from 'date-fns';
 import { Client, CobroData } from '@/types/client';
 import { computeRenewal } from '@/lib/api';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -66,7 +66,14 @@ const PaymentDialog = ({ client, templates = DEFAULT_TEMPLATES, cobro = DEFAULT_
   };
 
   // El comprobante se arma con lo que se acaba de cobrar y el vencimiento ya renovado
-  const paidClient: Client = { ...client, total: monto, vencimiento: new Date(`${vencimientoNuevo}T12:00:00`) };
+  const nuevoVencimiento = new Date(`${vencimientoNuevo}T12:00:00`);
+  // Para el mensaje de pago: [Dias] son los días que le quedan hasta el nuevo vencimiento (no los que estuvo vencido)
+  const paidClient: Client = {
+    ...client,
+    total: monto,
+    vencimiento: nuevoVencimiento,
+    dias: differenceInCalendarDays(nuevoVencimiento, new Date()),
+  };
   const receiptUrl = done ? buildWhatsAppUrl(client, buildWhatsAppMessage(paidClient, templates, cobro, 'paid')) : null;
 
   return (
@@ -179,7 +186,7 @@ const PaymentDialog = ({ client, templates = DEFAULT_TEMPLATES, cobro = DEFAULT_
             </div>
 
             <p className="text-xs text-muted-foreground">
-              Vencimiento actual: {format(client.vencimiento, 'dd/MM/yyyy')}. Podés ajustar la nueva fecha si acordaron otra.
+              Vencimiento actual: {format(client.vencimiento, 'dd/MM/yyyy')}. Se renueva desde esa fecha aunque pague tarde; podés ajustar la nueva si acordaron otra.
             </p>
 
             {invalid && <p role="alert" className="text-sm text-rose-600 font-medium">{invalid}</p>}

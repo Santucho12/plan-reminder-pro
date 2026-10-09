@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Layers, Percent, Plus, Trash2, Save, MessageCircle, Package, Check, Pencil } from 'lucide-react';
+import { Layers, Percent, Plus, Minus, Trash2, Save, MessageCircle, Package, Check, Pencil } from 'lucide-react';
 import { Client, Plan, isCombo } from '@/types/client';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { expectedPrice, formatPlanItems, groupPlatforms, parsePlanItems } from '@/lib/plans';
 import { userMessage } from '@/lib/errors';
 
 interface PlansViewProps {
@@ -35,10 +36,10 @@ const money = (value: number) => `$${Number(value || 0).toLocaleString('es-AR')}
 const inputClass = 'h-11 rounded-xl bg-secondary/40 border-none px-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/30';
 const labelClass = 'text-[10px] font-black text-muted-foreground uppercase tracking-widest';
 
-/** Precio más repetido entre los clientes de un plan (para proponerlo cuando el plan todavía no está en el catálogo). */
-function commonPrice(clients: Client[]): number {
+/** Precio más repetido (para proponerlo cuando la plataforma todavía no está en el catálogo). */
+function commonPrice(prices: number[]): number {
   const counts = new Map<number, number>();
-  for (const c of clients) counts.set(c.total, (counts.get(c.total) || 0) + 1);
+  for (const price of prices) counts.set(price, (counts.get(price) || 0) + 1);
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 0;
 }
 
@@ -59,22 +60,30 @@ export function suggestComboPrice(combo: Plan, before: Plan[], after: Plan[]): n
 }
 
 const PlansView = ({ clients, plans, onSave, onNotify }: PlansViewProps) => {
+  /**
+   * Clientes de cada plataforma o combo. Un cliente con varias ("Disney+ x2 + YouTube Premium")
+   * cuenta en cada una. `unit` es lo que paga por una cuenta cuando ese es su único plan.
+   */
   const byPlan = useMemo(() => {
-    const map = new Map<string, Client[]>();
+    const map = new Map<string, { nombre: string; clients: Client[]; units: number[] }>();
     for (const c of clients) {
-      if (!c.plan?.trim()) continue;
-      const list = map.get(key(c.plan));
-      if (list) list.push(c); else map.set(key(c.plan), [c]);
+      const items = parsePlanItems(c.plan, plans);
+      for (const it of items) {
+        const entry = map.get(key(it.nombre)) ?? { nombre: it.nombre, clients: [], units: [] };
+        if (!entry.clients.includes(c)) entry.clients.push(c);
+        if (items.length === 1) entry.units.push(Math.round(c.total / it.cantidad));
+        map.set(key(it.nombre), entry);
+      }
     }
     return map;
-  }, [clients]);
+  }, [clients, plans]);
 
-  // Catálogo guardado + planes que ya usan los clientes y todavía no se cargaron
+  // Catálogo guardado + plataformas que ya usan los clientes y todavía no se cargaron
   const initialRows = useMemo<Plan[]>(() => {
     const rows = plans.map(p => ({ ...p }));
     const known = new Set(rows.map(p => key(p.nombre)));
-    for (const [planKey, list] of byPlan) {
-      if (!known.has(planKey)) rows.push({ nombre: list[0].plan.trim(), precio: commonPrice(list) });
+    for (const [planKey, entry] of byPlan) {
+      if (!known.has(planKey)) rows.push({ nombre: entry.nombre.trim(), precio: commonPrice(entry.units) });
     }
     return rows.sort((a, b) => a.nombre.localeCompare(b.nombre));
   }, [plans, byPlan]);
@@ -115,7 +124,7 @@ const PlansView = ({ clients, plans, onSave, onNotify }: PlansViewProps) => {
   const platforms = rows.filter(r => !isCombo(r));
   const combos = rows.filter(isCombo);
   const comboSum = sumOf({ nombre: '', precio: 0, plataformas: comboPlatforms }, platforms);
-  const clientsOf = (row: Plan) => byPlan.get(key(row.nombre)) || [];
+  const clientsOf = (row: Plan) => byPlan.get(key(row.nombre))?.clients ?? [];
 
   const persist = async (finalRows: Plan[], applyToClients: boolean, renames: PlanRename[]) => {
     setSaving(true);
@@ -210,7 +219,7 @@ const PlansView = ({ clients, plans, onSave, onNotify }: PlansViewProps) => {
     setEditing(null);
   };
 
-  const comboNameFinal = draftName.trim() || comboPlatforms.join(' + ');
+  const comboNameFinal = draftName.trim() || formatPlanItems(groupPlatforms(comboPlatforms));
   const percentValue = parseFloat(draftPercent.replace(',', '.'));
   const hasPercent = draftPercent.trim() !== '' && Number.isFinite(percentValue);
   /** El campo % aparece en combos (descuento) y al editar una plataforma (ajuste). */
@@ -242,6 +251,16 @@ const PlansView = ({ clients, plans, onSave, onNotify }: PlansViewProps) => {
     setComboPlatforms(prev => (prev.includes(nombre) ? prev.filter(p => p !== nombre) : [...prev, nombre]));
     setDraftError('');
   };
+  /** Más o menos cuentas de una plataforma dentro del combo (ej: Disney+ ×2). */
+  const changePlatformQty = (nombre: string, delta: 1 | -1) => {
+    setComboPlatforms(prev => {
+      if (delta > 0) return [...prev, nombre];
+      const index = prev.lastIndexOf(nombre);
+      return index === -1 ? prev : prev.filter((_, i) => i !== index);
+    });
+    setDraftError('');
+  };
+  const qtyInCombo = (nombre: string) => comboPlatforms.filter(p => p === nombre).length;
 
   const confirmDialog = (e: React.FormEvent) => {
     e.preventDefault();
@@ -277,10 +296,14 @@ const PlansView = ({ clients, plans, onSave, onNotify }: PlansViewProps) => {
 
   const usedInCombos = (nombre: string) => combos.filter(c => c.plataformas!.some(p => key(p) === key(nombre)));
 
-  /** Clientes del plan cuyo importe quedaría distinto al precio del catálogo. */
-  const outdated = (row: Plan) =>
-    clientsOf(row).filter(c => c.total !== row.precio && !(skipNoted && c.nota_precio));
-  const totalOutdated = rows.reduce((acc, r) => acc + outdated(r).length, 0);
+  /** El cliente paga distinto de lo que suma su plan en el catálogo (precio × cantidad de cada cosa). */
+  const isOutdated = (c: Client) => {
+    if (skipNoted && c.nota_precio) return false;
+    const expected = expectedPrice(c.plan, rows);
+    return expected !== null && expected !== c.total;
+  };
+  const outdated = (row: Plan) => clientsOf(row).filter(isOutdated);
+  const totalOutdated = clients.filter(isOutdated).length;
 
   const priceTag = (row: Plan) => (
     <span aria-label={`Precio de ${row.nombre}`} className="shrink-0 sm:min-w-[96px] text-right text-sm sm:text-base font-bold tabular-nums">
@@ -415,8 +438,10 @@ const PlansView = ({ clients, plans, onSave, onNotify }: PlansViewProps) => {
                   <div className="flex-1 min-w-0 space-y-1">
                     <p className="text-sm font-bold break-words">{combo.nombre}</p>
                     <div className="flex flex-wrap gap-1">
-                      {combo.plataformas!.map(p => (
-                        <span key={p} className="px-2 py-0.5 rounded-md bg-violet-100 text-violet-700 text-[10px] font-bold">{p}</span>
+                      {groupPlatforms(combo.plataformas).map(p => (
+                        <span key={p.nombre} className="px-2 py-0.5 rounded-md bg-violet-100 text-violet-700 text-[10px] font-bold">
+                          {p.nombre}{p.cantidad > 1 && ` ×${p.cantidad}`}
+                        </span>
                       ))}
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -523,19 +548,33 @@ const PlansView = ({ clients, plans, onSave, onNotify }: PlansViewProps) => {
                 <p className={labelClass}>Plataformas del combo</p>
                 <div className="flex flex-wrap gap-2">
                   {platforms.map(p => {
-                    const selected = comboPlatforms.includes(p.nombre);
+                    const qty = qtyInCombo(p.nombre);
+                    const selected = qty > 0;
                     return (
-                      <button
-                        key={p.nombre}
-                        type="button"
-                        aria-pressed={selected}
-                        onClick={() => togglePlatform(p.nombre)}
-                        className={`px-3 h-9 rounded-xl text-xs font-bold border transition-colors flex items-center gap-1.5 ${
-                          selected ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-foreground border-border hover:border-violet-300'
-                        }`}
-                      >
-                        {selected && <Check size={12} />} {p.nombre}
-                      </button>
+                      <div key={p.nombre} className="flex items-center">
+                        <button
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => togglePlatform(p.nombre)}
+                          className={`px-3 h-9 text-xs font-bold border transition-colors flex items-center gap-1.5 ${selected ? 'rounded-l-xl' : 'rounded-xl'} ${
+                            selected ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-foreground border-border hover:border-violet-300'
+                          }`}
+                        >
+                          {selected && <Check size={12} />} {p.nombre}
+                        </button>
+                        {/* Cuentas de esta plataforma dentro del combo */}
+                        {selected && (
+                          <div className="flex items-center h-9 rounded-r-xl bg-violet-100 text-violet-700 border border-l-0 border-violet-600">
+                            <button type="button" onClick={() => changePlatformQty(p.nombre, -1)} aria-label={`Una cuenta menos de ${p.nombre}`} className="w-7 h-full flex items-center justify-center hover:bg-violet-200 rounded-l-none">
+                              <Minus size={12} />
+                            </button>
+                            <span className="min-w-[1.25rem] text-center text-xs font-black tabular-nums">{qty}</span>
+                            <button type="button" onClick={() => changePlatformQty(p.nombre, 1)} disabled={qty >= 9} aria-label={`Una cuenta más de ${p.nombre}`} className="w-7 h-full flex items-center justify-center hover:bg-violet-200 rounded-r-xl disabled:opacity-30">
+                              <Plus size={12} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -552,7 +591,7 @@ const PlansView = ({ clients, plans, onSave, onNotify }: PlansViewProps) => {
                 autoFocus={dialog === 'plan'}
                 value={draftName}
                 onChange={(e) => { setDraftName(e.target.value); setDraftError(''); }}
-                placeholder={dialog === 'combo' ? (comboPlatforms.length >= 2 ? comboPlatforms.join(' + ') : 'Ej: Netflix + Disney') : 'Ej: Disney+ Premium'}
+                placeholder={dialog === 'combo' ? (comboPlatforms.length >= 2 ? formatPlanItems(groupPlatforms(comboPlatforms)) : 'Ej: Netflix + Disney') : 'Ej: Disney+ Premium'}
                 className={`${inputClass} w-full`}
               />
             </div>

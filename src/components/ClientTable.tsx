@@ -78,7 +78,7 @@ const ClientTable = ({ clients, onSendMessage, onEdit, onDelete, onRegisterPayme
   if (isMobile) {
     return (
       <div className="space-y-3">
-        <p className="px-1 text-xs font-semibold tracking-widest text-muted-foreground uppercase">{clients.length} Resultados</p>
+        <p className="px-1 text-xs font-semibold tracking-widest text-muted-foreground uppercase">{clients.length} {clients.length === 1 ? 'Resultado' : 'Resultados'}</p>
         {/* En tablet entran dos tarjetas por fila */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {clients.map(client => (
@@ -146,7 +146,7 @@ const ClientTable = ({ clients, onSendMessage, onEdit, onDelete, onRegisterPayme
             <h2 className="text-base font-bold tracking-tight uppercase text-muted-foreground/80">Clientes</h2>
           </div>
           <div className="flex items-center gap-4 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
-            <span className="px-2 py-1 bg-secondary rounded-md">{clients.length} Resultados</span>
+            <span className="px-2 py-1 bg-secondary rounded-md">{clients.length} {clients.length === 1 ? 'Resultado' : 'Resultados'}</span>
           </div>
         </div>
 

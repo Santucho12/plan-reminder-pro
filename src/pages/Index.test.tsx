@@ -998,6 +998,26 @@ describe('clientes: filtros, celular y errores', () => {
     expect([...names()].sort()).toEqual(['Con Varias', 'Pronto Dos']);
   });
 
+  it('el estado Personalizado filtra por un rango de días al vencimiento', async () => {
+    await openClients();
+    const [, estado] = screen.getAllByRole('combobox');
+    choose(estado, 'Personalizado…');
+    const rango = within(screen.getByRole('region', { name: 'Rango de días' }));
+    // Vencidos hace entre 15 y 5 días: solo "Vencido Tres" (hace 10)
+    fireEvent.change(rango.getByLabelText('Desde (días)'), { target: { value: '-15' } });
+    fireEvent.change(rango.getByLabelText('Hasta (días)'), { target: { value: '-5' } });
+    expect(names()).toEqual(['Vencido Tres']);
+    expect(rango.getByText(/1 cliente\./)).toBeInTheDocument();
+
+    // Los atajos completan el rango: vencen en los próximos 7 días (hoy y en 2 días)
+    fireEvent.click(rango.getByRole('button', { name: 'Vencen en los próximos 7 días' }));
+    expect([...names()].sort()).toEqual(['Hoy Uno', 'Pronto Dos']);
+
+    // Sin límite de un lado: desde hoy en adelante
+    fireEvent.change(rango.getByLabelText('Hasta (días)'), { target: { value: '' } });
+    expect([...names()].sort()).toEqual(['Al Día', 'Hoy Uno', 'Pronto Dos']);
+  });
+
   it('busca combinando el texto con los filtros y avisa si no hay resultados', async () => {
     await openClients();
     const [plataforma] = screen.getAllByRole('combobox');

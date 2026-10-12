@@ -64,6 +64,7 @@ export const HELP: Record<HelpModule, HelpContent> = {
           'El buscador filtra por nombre.',
           'Plataforma: muestra solo los clientes de un plan.',
           'Estado: Activo (vence en más de 3 días), Por vencer (1 a 3 días), Vence hoy o Vencido. El estado se calcula solo con la fecha de vencimiento.',
+          'Estado → Personalizado: elegís un rango de días al vencimiento. Negativo son los días que lleva vencido y positivo los que le faltan; por ejemplo de -7 a -3 muestra a los que vencieron hace entre 3 y 7 días. Si dejás un lado vacío, no tiene límite. También hay atajos para los rangos más comunes.',
           'Ordenar: por mayor o menor monto.',
         ],
       },

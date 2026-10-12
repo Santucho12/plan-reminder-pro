@@ -53,6 +53,7 @@ import {
 } from '@/lib/whatsapp';
 import { userMessage } from '@/lib/errors';
 import { expectedPrice, parsePlanItems, planIncludes, renameInPlan } from '@/lib/plans';
+import { CUSTOM_RANGE, ESTADOS, RANGE_PRESETS, describeDayRange, inDayRange, parseDayRange } from '@/lib/dayRange';
 
 const IndexPage = () => {
   const confirmLeave = useConfirmLeave();
@@ -68,6 +69,9 @@ const IndexPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [platformFilter, setPlatformFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  /** Filtro "Personalizado": días al vencimiento (negativo = vencido hace X días). Vacío = sin límite. */
+  const [rangeFrom, setRangeFrom] = useState('');
+  const [rangeTo, setRangeTo] = useState('');
   const [sortConfig, setSortConfig] = useState<'total-asc' | 'total-desc'>('total-desc');
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -385,13 +389,16 @@ const IndexPage = () => {
   // Cada plataforma o combo por separado: un cliente con varias aparece al filtrar por cualquiera
   const platforms = Array.from(new Set(clients.flatMap(c => parsePlanItems(c.plan, settings.planes).map(it => it.nombre))))
     .sort((a, b) => a.localeCompare(b));
-  const statuses = Array.from(new Set(clients.map(c => c.estado).filter(Boolean)));
+  // Siempre en el mismo orden, del más tranquilo al más urgente
+  const statuses = ESTADOS.filter(e => clients.some(c => c.estado === e));
+  const range = parseDayRange(rangeFrom, rangeTo);
 
   const filteredClients = clients
     .filter(client => {
       const matchesSearch = client.nombre.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesPlatform = platformFilter === 'all' || planIncludes(client.plan, platformFilter, settings.planes);
-      const matchesStatus = statusFilter === 'all' || client.estado === statusFilter;
+      const matchesStatus = statusFilter === 'all'
+        || (statusFilter === CUSTOM_RANGE ? inDayRange(Number(client.dias), range) : client.estado === statusFilter);
       return matchesSearch && matchesPlatform && matchesStatus;
     })
     .sort((a, b) => {
@@ -440,7 +447,7 @@ const IndexPage = () => {
         onLogout={() => confirmLeave(handleLogout)}
       />
 
-      <main className="lg:ml-[260px] px-4 md:px-8 pt-20 pb-28 lg:p-10 min-h-screen relative overflow-hidden">
+      <main className="lg:ml-[260px] px-4 md:px-8 pt-20 pb-28 lg:p-10 min-h-screen relative overflow-clip">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-[100px] -z-10" />
         <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-emerald-500/5 rounded-full translate-y-1/2 -translate-x-1/2 blur-[80px] -z-10" />
 
@@ -647,7 +654,7 @@ const IndexPage = () => {
 
                     <div className="grid grid-cols-[1.3fr_1fr_1fr] sm:flex sm:flex-wrap gap-2 md:gap-3">
                       <Select value={platformFilter} onValueChange={setPlatformFilter}>
-                        <SelectTrigger className="w-full sm:w-[180px] h-11 md:h-14 px-3 md:px-4 rounded-xl md:rounded-2xl bg-secondary/30 border-none text-xs md:text-sm font-semibold [&>span]:truncate">
+                        <SelectTrigger className="w-full min-w-0 sm:w-[180px] h-11 md:h-14 px-3 md:px-4 rounded-xl md:rounded-2xl bg-secondary/30 border-none text-xs md:text-sm font-semibold [&>span]:truncate">
                           <SelectValue placeholder="Plataforma" />
                         </SelectTrigger>
                         <SelectContent className="rounded-2xl">
@@ -659,19 +666,22 @@ const IndexPage = () => {
                       </Select>
 
                       <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="w-full sm:w-[180px] h-11 md:h-14 px-3 md:px-4 rounded-xl md:rounded-2xl bg-secondary/30 border-none text-xs md:text-sm font-semibold [&>span]:truncate">
-                          <SelectValue placeholder="Estado" />
+                        <SelectTrigger className="w-full min-w-0 sm:w-[180px] h-11 md:h-14 px-3 md:px-4 rounded-xl md:rounded-2xl bg-secondary/30 border-none text-xs md:text-sm font-semibold [&>span]:truncate">
+                          {/* En el celular "Personalizado…" no entra: se muestra "Rango" */}
+                          <div className={statusFilter === CUSTOM_RANGE ? 'sm:hidden truncate' : 'hidden'}>Rango</div>
+                          <div className={statusFilter === CUSTOM_RANGE ? 'hidden sm:block truncate' : 'truncate'}><SelectValue placeholder="Estado" /></div>
                         </SelectTrigger>
                         <SelectContent className="rounded-2xl">
                           <SelectItem value="all">Estado</SelectItem>
                           {statuses.map(s => (
                             <SelectItem key={s} value={s}>{s}</SelectItem>
                           ))}
+                          <SelectItem value={CUSTOM_RANGE}>Personalizado…</SelectItem>
                         </SelectContent>
                       </Select>
 
                       <Select value={sortConfig} onValueChange={(v: any) => setSortConfig(v)}>
-                        <SelectTrigger className="w-full sm:w-[180px] h-11 md:h-14 px-3 md:px-4 rounded-xl md:rounded-2xl bg-secondary/30 border-none text-xs md:text-sm font-semibold [&>span]:truncate">
+                        <SelectTrigger className="w-full min-w-0 sm:w-[180px] h-11 md:h-14 px-3 md:px-4 rounded-xl md:rounded-2xl bg-secondary/30 border-none text-xs md:text-sm font-semibold [&>span]:truncate">
                           <ArrowUpDown className="hidden min-[380px]:block w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0 text-muted-foreground/60" />
                           {/* En el celular no entra "Mayor monto": se muestra abreviado */}
                           <div className="sm:hidden truncate">{sortConfig === 'total-desc' ? 'Mayor $' : 'Menor $'}</div>
@@ -684,6 +694,56 @@ const IndexPage = () => {
                       </Select>
                     </div>
                   </div>
+
+                  {statusFilter === CUSTOM_RANGE && (
+                    <section aria-label="Rango de días" className="-mt-1 md:-mt-4 mb-4 md:mb-8 bg-card border border-primary/30 p-3 md:p-5 rounded-2xl md:rounded-3xl shadow-sm space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                        <div className="grid grid-cols-2 gap-2 md:gap-3 sm:w-[340px]">
+                          <label className="space-y-1">
+                            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Desde (días)</span>
+                            <input
+                              type="number"
+                              step={1}
+                              value={rangeFrom}
+                              onChange={(e) => setRangeFrom(e.target.value)}
+                              placeholder="-7"
+                              className="w-full h-11 md:h-12 rounded-xl bg-secondary/30 border-none px-3 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/30"
+                            />
+                          </label>
+                          <label className="space-y-1">
+                            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Hasta (días)</span>
+                            <input
+                              type="number"
+                              step={1}
+                              value={rangeTo}
+                              onChange={(e) => setRangeTo(e.target.value)}
+                              placeholder="-3"
+                              className="w-full h-11 md:h-12 rounded-xl bg-secondary/30 border-none px-3 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/30"
+                            />
+                          </label>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {RANGE_PRESETS.map(p => (
+                            <button
+                              key={p.label}
+                              type="button"
+                              onClick={() => { setRangeFrom(String(p.from)); setRangeTo(String(p.to)); }}
+                              aria-label={p.label}
+                              className="h-9 px-3 rounded-xl text-xs font-bold bg-secondary/60 text-slate-600 hover:bg-primary/10 hover:text-primary transition-colors whitespace-nowrap"
+                            >
+                              <span className="sm:hidden">{p.short}</span>
+                              <span className="hidden sm:inline">{p.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        <span className="font-semibold text-foreground">{describeDayRange(range)}</span>
+                        {' · '}{filteredClients.length} {filteredClients.length === 1 ? 'cliente' : 'clientes'}.
+                        {' '}Negativo = días que lleva vencido; positivo = días que le faltan; 0 = vence hoy.
+                      </p>
+                    </section>
+                  )}
 
                   <ClientTable clients={filteredClients} {...tableActions} />
                 </div>

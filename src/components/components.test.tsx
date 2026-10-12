@@ -124,7 +124,7 @@ describe('ClientTable', () => {
     expect(within(row).getByText('16 mar 26')).toBeInTheDocument();
     expect(within(row).getByText('$15.000')).toBeInTheDocument();
     expect(within(row).getByText('Por vencer')).toBeInTheDocument();
-    expect(screen.getByText('1 Resultados')).toBeInTheDocument();
+    expect(screen.getByText('1 Resultado')).toBeInTheDocument();
   });
 
   it('los botones de la fila avisan con el cliente correcto', () => {
